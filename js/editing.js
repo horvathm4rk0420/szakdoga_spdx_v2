@@ -865,7 +865,6 @@ function removeLicenseParenthesisGroup(
 }
 ;
 
-// Keep CycloneDX JSON evidence text blocks aligned with the declared licenses.
 function syncComponentLicenseTexts(component, previousLicenses = [], licenseTexts = {}) {
     if (!component || !Array.isArray(component.licenses)) return;
 
@@ -895,7 +894,6 @@ function syncComponentLicenseTexts(component, previousLicenses = [], licenseText
     if (!component.evidence || typeof component.evidence !== 'object') component.evidence = {};
     component.evidence.licenses = terms.map((term, evidenceIndex) => {
         let source = byName.get(term)?.shift();
-        // Preserve text on a replacement, but never rename a retained license on insertion/removal.
         if (!source && removedTerms.length === addedTerms.length) {
             source = byName.get(removedTerms[addedTerms.indexOf(term)])?.shift();
         }
@@ -917,7 +915,6 @@ function syncComponentLicenseTexts(component, previousLicenses = [], licenseText
                 : indexedKey;
         if (Object.prototype.hasOwnProperty.call(licenseTexts, textKey)) {
             license.text.content = String(licenseTexts[textKey] ?? '');
-            // The editor saves plain text, even when the original attachment was encoded.
             delete license.text.encoding;
         }
         return entry;
@@ -925,7 +922,6 @@ function syncComponentLicenseTexts(component, previousLicenses = [], licenseText
 }
 ;
 
-// Move saved text edits with their license occurrences when expression positions change.
 function remapLicenseTextEdits(licenseTexts = {}, previousValue = '', nextValue = '') {
     const getTerms = value => String(value || '').split(',').flatMap(expression => {
         const parsed = parseLicenseExpressionTree(expression.trim());
@@ -1015,7 +1011,6 @@ function toggleRowEdit(editKey, rowDomId) {
         row.dataset.tooldownloadEditing = 'true';
         row.classList.add('tooldownload-editing');
 
-        // Store old values on the row element so the save path can diff them
         row.dataset.tdOldName      = fields.find(f => f[0] === 'name')?.[1]      || '';
         row.dataset.tdOldVersion   = fields.find(f => f[0] === 'version')?.[1]   || '';
         row.dataset.tdOldLicenses  = fields.find(f => f[0] === 'licenses')?.[1]  || '';
@@ -1146,7 +1141,6 @@ function toggleRowEdit(editKey, rowDomId) {
                     ...existing,
                     license: { ...(existing.license || {}), id: token }
                 };
-                // Switching from expression -> plain ID must clear stale expression.
                 delete updated.expression;
                 return updated;
             });
@@ -1156,8 +1150,6 @@ function toggleRowEdit(editKey, rowDomId) {
         const licenseTexts = remapLicenseTextEdits(tooldownloadEdits.get(editKey)?.licenseTexts, previousValue, nextLicenses);
         syncComponentLicenseTexts(raw, previousLicenses, licenseTexts);
         if (Array.isArray(raw.licenses)) {
-            // Replay starts from the original file, so retain every current text,
-            // including text on licenses added earlier in this editing session.
             raw.evidence.licenses.forEach((entry, index) => {
                 const name = entry.license.id || entry.license.name;
                 licenseTexts[`${name}#${index}`] = extractLicenseDocumentText(entry);
@@ -1221,8 +1213,6 @@ function toggleRowEdit(editKey, rowDomId) {
         updateChangeTrackingUi();
     }
 
-    // Capture position context so restoreTooldownloadEditPosition() can scroll
-    // back to this row (or the nearest visible row in the same filter) after revalidation.
     const allComponentRows = Array.from(document.querySelectorAll('#componentsTable tbody tr[data-component-key]'));
     const visibleComponentRows = allComponentRows.filter(r => r.style.display !== 'none');
     const thisComponentKey = row.dataset.componentKey || editKey;
@@ -1273,7 +1263,6 @@ function downloadEditedSbom() {
 }
 ;
 
-// Resolve a dot/bracket path like 'components[0].name' into the JSON object at that path.
 function _tdResolveJsonPath(root, path) {
     if (!path || typeof root !== 'object' || root === null) return null;
     let current = root;
@@ -1287,7 +1276,6 @@ function _tdResolveJsonPath(root, path) {
     return (current !== undefined && current !== null && typeof current === 'object') ? current : null;
 }
 
-// Resolve a path like 'components[2]' into an XML element inside the Document.
 function _tdResolveXmlPath(doc, path) {
     if (!path || !(doc instanceof Document)) return null;
     if (path === 'metadata.component') return doc.querySelector('metadata > component') || null;
@@ -1402,7 +1390,6 @@ function applyTooldownloadEditsToLoadedData(loadedData) {
                             ...existing,
                             license: { ...(existing.license || {}), id: token }
                         };
-                        // Ensure old expression does not override edited ID.
                         delete updated.expression;
                         return updated;
                     });

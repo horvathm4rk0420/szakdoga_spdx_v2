@@ -1,5 +1,3 @@
-// Default canned responses for the Invalid Issues editor.
-// Edit or replace this list to change the templates bundled with the tool.
 window.CANNED_RESPONSES_DATA = [
     {
         id: 'default-1',
@@ -19,28 +17,17 @@ window.CANNED_RESPONSES_DATA = [
 ];
 ;
 
-/**
- * Canned Responses Manager for Invalid Issues Editor
- * Handles loading, saving, searching, and managing canned response templates
- * Uses browser localStorage for automatic persistence
- */
-
 const STORAGE_KEY = 'cannedResponses_invalidIssues';
 const SOURCE_VERSION_KEY = `${STORAGE_KEY}_sourceVersion`;
 let cannedResponsesCache = null;
 let cannedResponsesLoaded = false;
 
-/**
- * Load canned responses from browser localStorage or use defaults
- */
 async function loadCannedResponses() {
-    // If already loaded, return cache
     if (cannedResponsesLoaded && cannedResponsesCache !== null) {
         console.log('Returning cached responses: ' + cannedResponsesCache.length);
         return cannedResponsesCache;
     }
     
-    // Read the editable defaults loaded from cannedResponsesData.js.
     const sourceResponses = Array.isArray(window.CANNED_RESPONSES_DATA)
         ? window.CANNED_RESPONSES_DATA
         : [];
@@ -77,19 +64,14 @@ async function loadCannedResponses() {
         console.warn('Error loading from localStorage:', error);
     }
 
-    // No stored data - start with bundled defaults.
     cannedResponsesCache = validSourceResponses;
     cannedResponsesLoaded = true;
     console.log('Loaded ' + cannedResponsesCache.length + ' default canned responses');
-    // Save defaults to localStorage for consistency
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cannedResponsesCache));
     localStorage.setItem(SOURCE_VERSION_KEY, JSON.stringify(validSourceResponses));
     return cannedResponsesCache;
 }
 
-/**
- * Save responses to browser localStorage (automatic persistence)
- */
 async function saveCannedResponses(responses) {
     try {
         cannedResponsesCache = responses;
@@ -104,9 +86,6 @@ async function saveCannedResponses(responses) {
     }
 }
 
-/**
- * Add a new canned response
- */
 async function addCannedResponse(title, text) {
     if (!title || !text) {
         return false;
@@ -124,9 +103,6 @@ async function addCannedResponse(title, text) {
     return newResponse;
 }
 
-/**
- * Delete a canned response by ID
- */
 async function deleteCannedResponse(responseId) {
     const responses = await loadCannedResponses();
     const filtered = responses.filter(r => r.id !== responseId);
@@ -134,9 +110,6 @@ async function deleteCannedResponse(responseId) {
     return true;
 }
 
-/**
- * Update an existing canned response
- */
 async function updateCannedResponse(responseId, title, text) {
     const responses = await loadCannedResponses();
     const response = responses.find(r => r.id === responseId);
@@ -151,9 +124,6 @@ async function updateCannedResponse(responseId, title, text) {
     return true;
 }
 
-/**
- * Search responses by title
- */
 async function searchCannedResponses(query) {
     const responses = await loadCannedResponses();
     console.log('searchCannedResponses: query="' + query + '", total responses=' + responses.length);
@@ -171,9 +141,6 @@ async function searchCannedResponses(query) {
     return filtered;
 }
 
-/**
- * Insert a response into the editor (append mode)
- */
 function insertCannedResponseToEditor(text) {
     const textarea = document.getElementById('invalidIssueContextText');
     if (!textarea) {
@@ -187,17 +154,11 @@ function insertCannedResponseToEditor(text) {
     return true;
 }
 
-/**
- * Generate a title from response text (first 50 chars)
- */
 function generateResponseTitle(text) {
     return text.substring(0, 50).replace(/\n/g, ' ').trim() + 
            (text.length > 50 ? '...' : '');
 }
 
-/**
- * Show a notification message
- */
 function showCannedResponseNotification(message) {
     const existingNotif = document.getElementById('cannedResponseNotification');
     if (existingNotif) {
@@ -228,9 +189,6 @@ function showCannedResponseNotification(message) {
     }, 3000);
 }
 
-/**
- * Export responses (download as JSON)
- */
 async function exportCannedResponses() {
     const responses = await loadCannedResponses();
     const dataStr = JSON.stringify({ responses }, null, 2);
@@ -247,9 +205,6 @@ async function exportCannedResponses() {
     showCannedResponseNotification('Responses exported! Replace canned_responses.json and refresh.');
 }
 
-/**
- * Import responses (load from file)
- */
 async function importCannedResponses() {
     const input = document.createElement('input');
     input.type = 'file';
@@ -274,9 +229,6 @@ async function importCannedResponses() {
     input.click();
 }
 
-/**
- * Clear import cache for import button
- */
 window.__importedResponsesNeedsSave = false;
 async function renderCannedResponsesSidebar() {
     console.log('=== renderCannedResponsesSidebar() called ===');
@@ -326,47 +278,37 @@ async function renderCannedResponsesSidebar() {
         `;
         listContainer.appendChild(item);
     });
-    
-    // Wire up event listeners for this render
+
     wireCannedResponsesEventListeners();
 }
 
-/**
- * Wire up event listeners for canned responses UI
- */
 function wireCannedResponsesEventListeners() {
-    // Card click = insert response
     document.querySelectorAll('.canned-response-item').forEach(item => {
         item.removeEventListener('click', handleInsertResponse);
         item.addEventListener('click', handleInsertResponse);
     });
     
-    // Delete buttons
     document.querySelectorAll('.canned-response-btn-delete').forEach(btn => {
         btn.removeEventListener('click', handleDeleteResponse);
         btn.addEventListener('click', handleDeleteResponse);
     });
     
-    // Preview buttons
     document.querySelectorAll('.canned-response-btn-preview').forEach(btn => {
         btn.removeEventListener('click', handlePreviewResponse);
         btn.addEventListener('click', handlePreviewResponse);
     });
-    
-    // Edit buttons
+
     document.querySelectorAll('.canned-response-btn-edit').forEach(btn => {
         btn.removeEventListener('click', handleEditResponse);
         btn.addEventListener('click', handleEditResponse);
     });
     
-    // Search box
     const searchBox = document.getElementById('cannedResponsesSearch');
     if (searchBox) {
         searchBox.removeEventListener('input', handleCannedResponsesSearch);
         searchBox.addEventListener('input', handleCannedResponsesSearch);
     }
     
-    // Add/Save button
     const addBtn = document.getElementById('cannedResponsesAddBtn');
     if (addBtn) {
         addBtn.removeEventListener('click', handleAddCannedResponse);
@@ -375,9 +317,6 @@ function wireCannedResponsesEventListeners() {
 
 }
 
-/**
- * Handle inserting a response (triggered by clicking the card itself)
- */
 async function handleInsertResponse(event) {
     const responseId = event.currentTarget.getAttribute('data-response-id');
     const responses = await loadCannedResponses();
@@ -389,9 +328,6 @@ async function handleInsertResponse(event) {
     }
 }
 
-/**
- * Handle deleting a response
- */
 async function handleDeleteResponse(event) {
     event.stopPropagation();
     const responseId = event.target.getAttribute('data-response-id');
@@ -403,9 +339,6 @@ async function handleDeleteResponse(event) {
     }
 }
 
-/**
- * Handle previewing a response
- */
 async function handlePreviewResponse(event) {
     event.stopPropagation();
     const responseId = event.target.getAttribute('data-response-id');
@@ -417,9 +350,6 @@ async function handlePreviewResponse(event) {
     }
 }
 
-/**
- * Handle editing a response
- */
 async function handleEditResponse(event) {
     event.stopPropagation();
     const responseId = event.target.getAttribute('data-response-id');
@@ -431,16 +361,10 @@ async function handleEditResponse(event) {
     }
 }
 
-/**
- * Handle searching responses
- */
 async function handleCannedResponsesSearch(event) {
     await renderCannedResponsesSidebar();
 }
 
-/**
- * Handle adding a new canned response from editor content
- */
 async function handleAddCannedResponse(event) {
     const textarea = document.getElementById('invalidIssueContextText');
     if (!textarea || !textarea.value.trim()) {
@@ -460,9 +384,6 @@ async function handleAddCannedResponse(event) {
     await renderCannedResponsesSidebar();
 }
 
-/**
- * Show preview modal
- */
 function showCannedResponsePreviewModal(title, text) {
     const existing = document.getElementById('cannedResponsePreviewModal');
     if (existing) {
@@ -497,9 +418,6 @@ function closeCannedResponsePreviewModal() {
     document.body.classList.remove('license-modal-open');
 }
 
-/**
- * Show edit modal
- */
 function showCannedResponseEditModal(responseId, title, text) {
     const existing = document.getElementById('cannedResponseEditModal');
     if (existing) {
@@ -553,9 +471,6 @@ async function saveCannedResponseEdit(responseId) {
     showCannedResponseNotification('Response updated');
 }
 
-/**
- * Initialize canned responses sidebar on modal open
- */
 async function initCannedResponsesSidebar() {
     const container = document.getElementById('cannedResponsesSidebarContainer');
     if (!container) {
@@ -565,12 +480,10 @@ async function initCannedResponsesSidebar() {
     
     console.log('Initializing canned responses sidebar...');
     
-    // Load and render responses
     const loaded = await loadCannedResponses();
     console.log('Loaded ' + (loaded ? loaded.length : 0) + ' responses');
     await renderCannedResponsesSidebar();
     
-    // Wire up the Save as Template button listener
     const addBtn = document.getElementById('cannedResponsesAddBtn');
     if (addBtn) {
         addBtn.removeEventListener('click', handleAddCannedResponse);
@@ -703,7 +616,6 @@ function downloadInvalidIssuesReport() {
 }
 ;
 
-// Show one component in the All results view.
 function showComponentInAllView(componentKey) {
     if (!componentKey || typeof filterTable !== 'function') return;
 
@@ -718,7 +630,6 @@ function showComponentInAllView(componentKey) {
 }
 ;
 
-// Restore the filter and component position after a manual license match.
 function restoreManualLicenseMatchPosition() {
     const context = manualLicenseNavigationContext;
     manualLicenseNavigationContext = null;
@@ -739,11 +650,6 @@ function restoreManualLicenseMatchPosition() {
 }
 ;
 
-// Restore the filter and component position after a Tooldownload row edit/save.
-// Follows the same rules as restoreManualLicenseMatchPosition:
-//   - If the edited component is still visible in the active filter, scroll to it.
-//   - If it is no longer in that filter (e.g. it moved from Invalid to Valid),
-//     stay in the same filter and jump to the nearest visible row by saved index.
 function restoreTooldownloadEditPosition() {
     const context = tooldownloadEditNavigationContext;
     tooldownloadEditNavigationContext = null;
@@ -764,7 +670,6 @@ function restoreTooldownloadEditPosition() {
 }
 ;
 
-// Expand or collapse a component's license badges.
 function toggleLicenseBadges(groupId, button) {
     const group = document.getElementById(groupId);
     if (!group || !button) return;
@@ -781,7 +686,6 @@ function toggleLicenseBadges(groupId, button) {
 }
 ;
 
-// Expand or collapse a component's copyright entries.
 function toggleCopyrightEntries(groupId, button) {
     const group = document.getElementById(groupId);
     if (!group || !button) return;

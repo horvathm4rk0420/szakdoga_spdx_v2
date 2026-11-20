@@ -1,10 +1,9 @@
-// Convert extracted component fields into the shared parser output.
 function createUnifiedComponentValues(component) {
     const sourceLicenses = Array.isArray(component?.licenses) ? component.licenses : [];
     const unifiedLicenses = [];
     const unifiedExpressions = [];
     const evidenceLicenseTexts = {};
-    const termEvidenceIndexMap = {}; // Evidence indices queued per license occurrence.
+    const termEvidenceIndexMap = {};
 
     const evidenceLicenses = Array.isArray(component?.evidence?.licenses)
         ? component.evidence.licenses
@@ -17,13 +16,10 @@ function createUnifiedComponentValues(component) {
 
         if (evidenceId) {
             const trimmedId = String(evidenceId).trim();
-            // Store indexed key: "GPL-1.0-or-later#0"
             const indexedKey = `${trimmedId}#${evidenceIndex}`;
             evidenceLicenseTexts[indexedKey] = evidenceText;
-            // Also store non-indexed key as fallback: "GPL-1.0-or-later"
             evidenceLicenseTexts[trimmedId] = evidenceText;
-            
-            // For grouped expressions, also extract individual terms and store text under their indexed keys
+
             const operator = getLicenseOperator(trimmedId);
             if (operator) {
                 const groupedTerms = splitLicenseTerms(trimmedId, operator);
@@ -31,16 +27,13 @@ function createUnifiedComponentValues(component) {
                     const normalizedTerm = normalizeLicenseName(term);
                     const termIndexedKey = `${normalizedTerm}#${evidenceIndex}`;
                     evidenceLicenseTexts[termIndexedKey] = evidenceText;
-                    // Fallback non-indexed for individual terms
                     if (!evidenceLicenseTexts[normalizedTerm]) {
                         evidenceLicenseTexts[normalizedTerm] = evidenceText;
                     }
-                    // Track that this term came from this evidence index
                     if (!termEvidenceIndexMap[normalizedTerm]) termEvidenceIndexMap[normalizedTerm] = [];
                     termEvidenceIndexMap[normalizedTerm].push(evidenceIndex);
                 });
             } else {
-                // Single license in evidence (not grouped)
                 const normalizedId = normalizeLicenseName(trimmedId);
                 if (!termEvidenceIndexMap[normalizedId]) termEvidenceIndexMap[normalizedId] = [];
                 termEvidenceIndexMap[normalizedId].push(evidenceIndex);
@@ -64,8 +57,6 @@ function createUnifiedComponentValues(component) {
         const rawOperator = getLicenseOperator(rawExpression);
         const rawTerms = splitLicenseTerms(rawExpression, rawOperator);
         const terms = rawTerms.map(term => normalizeLicenseName(term));
-        // Grouped (parenthesized) expressions must be rebuilt from their parsed
-        // tree - not a flat join - so nested AND/OR grouping is preserved.
         let expression;
         if (rawOperator === 'GROUPED') {
             const parsedRawExpression = parseLicenseExpressionTree(rawExpression);
@@ -192,8 +183,6 @@ function createUnifiedComponentValues(component) {
 }
 ;
 
-// Apply the shared semantic rules to normalized component values.
-// Source adapters must call createUnifiedComponentValues() before this function.
 function validateUnifiedComponent(unified, options = {}) {
     const errors = [];
     const warnings = [];
@@ -297,7 +286,6 @@ function validateUnifiedComponent(unified, options = {}) {
 }
 ;
 
-// Extract CycloneDX component fields, then apply shared semantic validation.
 function validateComponent(component, section, indent = 0, index = 1, isMetadataComponent = false, validationMode = 'standard', objectPath = '') {
     const sourceComponent = component;
     const normalizedFromManualMapping = Array.isArray(component?.unifiedLicenses)
@@ -368,9 +356,6 @@ function validateComponent(component, section, indent = 0, index = 1, isMetadata
     return results;
 }
 
-// Populate extractedLicenseTextById on license entries when CycloneDX includes inline license text
-// This ensures downstream functions (evaluateLicenseTerms, displayResults) can resolve per-term extracted text.
-// Called by validateComponent during processing by mutating component.licenses in-place.
 function attachExtractedLicenseTextMaps(component) {
     if (!component || !Array.isArray(component.licenses)) return;
     component.licenses.forEach(licenseItem => {
@@ -382,17 +367,14 @@ function attachExtractedLicenseTextMaps(component) {
         const key = String(id || '').trim();
         licenseItem.extractedLicenseTextById = licenseItem.extractedLicenseTextById || {};
         if (key) {
-            // store under the raw id/name; getExtractedLicenseText will try variants
             licenseItem.extractedLicenseTextById[key] = extracted.trim();
         } else {
-            // fallback: store under a generic index to allow any-term lookup to pick it up via scanning
             licenseItem.extractedLicenseTextById['__default'] = extracted.trim();
         }
     });
 }
 ;
 
-// Main CycloneDX JSON validation function
 async function validateSBOM(sbomData, filename) {
     document.getElementById('loading').style.display = 'block';
     document.getElementById('results').innerHTML = '';
@@ -408,7 +390,6 @@ async function validateSBOM(sbomData, filename) {
         return;
     }
 
-    // Check if any schemas are loaded
     const schemas = getSchemasIfLoaded();
     const specVersion = sbomData.specVersion || '1.7';
     
@@ -418,7 +399,6 @@ async function validateSBOM(sbomData, filename) {
         return;
     }
 
-    // Determine which schema to use (exact match, then nearest version)
     const schemaData = schemas ? pickSchema(schemas, specVersion) : {};
     
     if (!schemaData) {
@@ -427,7 +407,6 @@ async function validateSBOM(sbomData, filename) {
         document.getElementById('loading').style.display = 'none';
         
         if (loadedCDX.length === 0) {
-            // No CycloneDX schema loaded, check if other types are loaded
             if (schemas?.hasSpdx || schemas?.hasXsd) {
                 showError(`This file is a CycloneDX ${specVersion} SBOM, but you have uploaded an SPDX or XSD schema instead. Please upload the CycloneDX ${specVersion} schema: bom-${specVersion}.schema.json`);
             } else {
@@ -439,7 +418,6 @@ async function validateSBOM(sbomData, filename) {
         return;
     }
 
-    // Get options
     const includeMetadataComponent = document.getElementById('includeMetadataComponent').checked;
     const includeMetadataTools = document.getElementById('includeMetadataTools').checked;
     const verbose = document.getElementById('verboseMode').checked;
@@ -448,13 +426,10 @@ async function validateSBOM(sbomData, filename) {
     setProgress(15, 'Validating SBOM structure...');
     await tick();
 
-    // Validate overall structure (basic validation)
     const overallErrors = validateAgainstSchema(sbomData, schemaData);
     const overallValid = overallErrors.length === 0;
 
-    // Collect component results
     const allResults = [];
-    // Validate metadata component - use metadata definition if available
     if (includeMetadataComponent && sbomData.metadata?.component) {
         setProgress(20, 'Validating metadata component...');
         await tick();
@@ -462,7 +437,6 @@ async function validateSBOM(sbomData, filename) {
         allResults.push(...results);
     }
 
-    // Validate components array
     const compArray = sbomData.components || [];
     const toolsArray = (includeMetadataTools && sbomData.metadata?.tools?.components) ? sbomData.metadata.tools.components : [];
     const total = compArray.length + toolsArray.length;
@@ -477,15 +451,13 @@ async function validateSBOM(sbomData, filename) {
         if ((idx + 1) % 50 === 0) await tick();
     }
 
-    // Validate tools components
     for (let idx = 0; idx < toolsArray.length; idx++) {
         const results = validateComponent(toolsArray[idx], 'Tools Components', 0, idx + 1, false, validationMode, `metadata.tools.components[${idx}]`);
         allResults.push(...results);
         if (total > 0) setProgress(25 + Math.round(60 * (compArray.length + idx + 1) / total), `Validating tool component ${idx + 1} of ${toolsArray.length}...`);
         if ((idx + 1) % 50 === 0) await tick();
     }
-    
-    // If no results were collected, show a message
+
     if (allResults.length === 0) {
         showError('No components found to validate. Check validation options (Include Metadata Component should be checked if there are no components array).');
         document.getElementById('loading').style.display = 'none';
@@ -499,12 +471,10 @@ async function validateSBOM(sbomData, filename) {
 }
 ;
 
-// Validate XML component
 function validateXMLComponent(compElem, section, indent, index, isMetadataComponent, validationMode = 'standard', objectPath = '') {
     const errors = [];
     const warnings = [];
 
-    // Extract data
     const nameElem = compElem.querySelector(':scope > name');
     const name = nameElem ? nameElem.textContent : '';
 
@@ -593,7 +563,6 @@ function validateXMLComponent(compElem, section, indent, index, isMetadataCompon
 }
 ;
 
-// Validate XML tool element
 function validateXMLTool(toolElem, section, indent, index) {
     const nameElem = toolElem.querySelector(':scope > name');
     const name = nameElem ? nameElem.textContent : 'N/A';
@@ -621,7 +590,6 @@ function validateXMLTool(toolElem, section, indent, index) {
 }
 ;
 
-// XML SBOM validation
 async function validateXMLSBOM(xmlDoc, filename) {
     document.getElementById('loading').style.display = 'block';
     document.getElementById('results').innerHTML = '';
@@ -644,7 +612,6 @@ async function validateXMLSBOM(xmlDoc, filename) {
         return;
     }
 
-    // Check if XSD schema is loaded
     if (REQUIRE_SCHEMA_BEFORE_VALIDATION && !xsdSchema) {
         document.getElementById('loading').style.display = 'none';
         const xmlSpecVersion = xmlDoc.documentElement?.getAttribute('version') || 'unknown';
@@ -672,8 +639,6 @@ async function validateXMLSBOM(xmlDoc, filename) {
         return;
     }
 
-    // Note: Full XSD validation in browser is limited
-    // We'll do basic structure validation instead
     setProgress(15, 'Parsing XML structure...');
     await tick();
     
@@ -686,7 +651,6 @@ async function validateXMLSBOM(xmlDoc, filename) {
     const allResults = [];
     let overallValid = true;
 
-    // 1. Validate metadata.component
     if (includeMetadataComponent) {
         const metadataComp = xmlDoc.querySelector('metadata > component');
         if (metadataComp) {
@@ -697,7 +661,6 @@ async function validateXMLSBOM(xmlDoc, filename) {
         }
     }
 
-    // 2. Validate components array
     const components = xmlDoc.querySelectorAll('components > component');
     const totalComps = components.length;
     setProgress(30, `Validating ${totalComps} components...`);
@@ -710,7 +673,6 @@ async function validateXMLSBOM(xmlDoc, filename) {
         if ((idx + 1) % 50 === 0) await tick();
     }
 
-    // 3. Validate metadata tools
     if (includeMetadataTools) {
         const tools = xmlDoc.querySelectorAll('metadata > tools > tool');
         tools.forEach((tool, idx) => {
@@ -726,12 +688,10 @@ async function validateXMLSBOM(xmlDoc, filename) {
 }
 ;
 
-// Validate SPDX package or file
 function validateSPDXPackage(pkg, section, indent, index, validationMode = 'standard', isFile = false, extractedLicenseTextById = {}, objectPath = '') {
     const errors = [];
     const warnings = [];
 
-    // Extract SPDX fields
     const name = pkg.name || '';
     const version = isFile ? '' : (pkg.versionInfo || '');
     const copyrightText = pkg.copyrightText || '';
@@ -743,7 +703,6 @@ function validateSPDXPackage(pkg, section, indent, index, validationMode = 'stan
         .map(id => getExtractedLicenseText(extractedLicenseTextById, id))
         .find(text => typeof text === 'string' && text.trim()) || '';
 
-    // Extract PURL from externalRefs (PACKAGE-MANAGER + purl)
     let purl = '';
     if (pkg.externalRefs && Array.isArray(pkg.externalRefs)) {
         const purlRef = pkg.externalRefs.find(ref =>
@@ -752,8 +711,7 @@ function validateSPDXPackage(pkg, section, indent, index, validationMode = 'stan
         );
         if (purlRef) purl = purlRef.referenceLocator || '';
     }
-
-    // Normalise licenses for display — keep concluded and declared separately with source info
+o
     const licenses = [];
     if (licenseConcluded && licenseConcluded !== 'NOASSERTION' && licenseConcluded !== 'NONE') {
         licenses.push({
@@ -788,7 +746,6 @@ function validateSPDXPackage(pkg, section, indent, index, validationMode = 'stan
     const canonicalCopyright = canonical.copyright;
     const canonicalPurl = canonical.purl;
 
-    // Mode-specific validation
     const semanticResult = validateUnifiedComponent(unified, {
         validationMode,
         isFile
@@ -825,7 +782,6 @@ function validateSPDXPackage(pkg, section, indent, index, validationMode = 'stan
 }
 ;
 
-// SPDX XML validation uses the existing SPDX validator after converting the XML DOM to SPDX-like JSON.
 async function validateSPDXXMLSBOM(xmlDoc, filename) {
     const spdxData = parseSpdxXmlDocument(xmlDoc);
     if (!spdxData) {
@@ -837,20 +793,17 @@ async function validateSPDXXMLSBOM(xmlDoc, filename) {
 }
 ;
 
-// SPDX JSON validation
 async function validateSPDXSBOM(sbomData, filename) {
     document.getElementById('loading').style.display = 'block';
     document.getElementById('results').innerHTML = '';
     setProgress(5, 'Checking SPDX schema...');
     await tick();
 
-    // Determine SPDX version from the document
     const spdxVersionStr = sbomData.spdxVersion || '';
     let activeSpdxSchema = null;
     if (spdxVersionStr.includes('2.3')) {
         activeSpdxSchema = spdxSchema23 || spdxSchema22;
     } else {
-        // 2.2 or unknown – use 2.2 first, fall back to 2.3
         activeSpdxSchema = spdxSchema22 || spdxSchema23;
     }
 
@@ -905,7 +858,6 @@ async function validateSPDXSBOM(sbomData, filename) {
     const fileArray = (includeFiles && sbomData.files && Array.isArray(sbomData.files)) ? sbomData.files : [];
     const total = pkgArray.length + fileArray.length;
 
-    // Validate packages
     setProgress(20, `Validating ${pkgArray.length} packages...`);
     await tick();
 
@@ -916,7 +868,6 @@ async function validateSPDXSBOM(sbomData, filename) {
         if ((idx + 1) % 50 === 0) await tick();
     }
 
-    // Optionally validate files
     for (let idx = 0; idx < fileArray.length; idx++) {
         const result = validateSPDXPackage(fileArray[idx], 'Files', 0, idx + 1, validationMode, true, extractedLicenseTextById, `files[${idx}]`);
         allResults.push(result);
@@ -938,8 +889,6 @@ async function validateSPDXSBOM(sbomData, filename) {
 }
 ;
 
-// Manual mapping support for structured, non-standard JSON SBOMs.
-// Mappings are session-only and use dot paths with [] array markers.
 
 let manualMappingConfig = {};
 
@@ -948,10 +897,6 @@ function looksLikeCustomStructuredJson(data) {
         return false;
     }
 
-    // A non-standard SBOM may itself be the top-level component array:
-    // [ { PackageName: '...', PackageInformation: {...} }, ... ]
-    // Neither CycloneDX nor SPDX JSON ever have a top-level array, so any
-    // array of plain objects here is safe to treat as custom structured JSON.
     if (Array.isArray(data)) {
         return data.length > 0 && data.some(item => item && typeof item === 'object' && !Array.isArray(item));
     }
@@ -977,12 +922,6 @@ function looksLikeCustomStructuredJson(data) {
         return true;
     }
 
-    // Generic fallback: a schemaless SBOM may store its component list under
-    // ANY top-level key (e.g. "dependencies", "modules", "libraries"), not
-    // just "Packages"/"packages". Detect any top-level array whose entries
-    // are plain objects with multiple descriptive fields. This only runs
-    // when none of the more specific checks above already matched, so it's
-    // purely additive and can't change behavior for already-working shapes.
     return Object.values(data).some(value => {
         if (!Array.isArray(value) || value.length === 0) return false;
         return value.some(item => item && typeof item === 'object' && !Array.isArray(item) && Object.keys(item).length >= 2);
@@ -1007,9 +946,6 @@ function getManualMappingFields() {
 }
 
 function getDefaultManualMappingConfig(sbomData = currentSbomData) {
-    // This specific template only matches SBOMs shaped like { Packages: [...] }.
-    // Other custom shapes (e.g. a top-level array) start blank so the user's
-    // own leaf-name mappings (aided by the recursive fallback) take effect.
     const hasPackagesArray = Boolean(sbomData && typeof sbomData === 'object' && !Array.isArray(sbomData) && Array.isArray(sbomData.Packages));
     if (hasPackagesArray) {
         return {
@@ -1169,11 +1105,6 @@ function findManualValuesByLeafName(value, leafName, results = []) {
     return results;
 }
 
-/**
- * Checks whether an object (or anything nested inside it) has a property
- * named leafName, at any depth. Used to locate the repeating component
- * collection when the user maps a field using only its bare leaf name.
- */
 function objectContainsLeafKeyDeep(value, leafName, visited) {
     if (value === null || value === undefined || typeof value !== 'object') return false;
     if (visited.has(value)) return false;
@@ -1185,13 +1116,6 @@ function objectContainsLeafKeyDeep(value, leafName, visited) {
     return Object.values(value).some(child => objectContainsLeafKeyDeep(child, leafName, visited));
 }
 
-/**
- * Searches the whole document for an array whose entries contain the given
- * leaf field name (at any nesting depth within each entry) and returns that
- * array. This lets a bare field name like "moduleName" (no path, no []
- * marker) resolve to the correct repeating component collection regardless
- * of what the surrounding/parent key is called (e.g. "dependencies").
- */
 function findArrayContainingLeafKey(data, leafName, visited = new Set()) {
     if (data === null || data === undefined || typeof data !== 'object') return null;
     if (visited.has(data)) return null;
@@ -1219,8 +1143,6 @@ function findArrayContainingLeafKey(data, leafName, visited = new Set()) {
 function getManualCollectionInfo(sbomData, mappingPath) {
     const tokens = tokenizeManualPath(mappingPath);
 
-    // A non-standard SBOM may itself be the component array:
-    // [ { name: '...', version: '...' }, ... ]
     if (Array.isArray(sbomData)) {
         return {
             records: sbomData,
@@ -1232,12 +1154,6 @@ function getManualCollectionInfo(sbomData, mappingPath) {
 
     const repeatIndex = tokens.findIndex(token => token.endsWith('[]'));
     if (repeatIndex < 0) {
-        // Fallback for schemaless JSON: if the user entered just a bare leaf
-        // field name (no explicit path, no [] marker), locate the array
-        // anywhere in the document whose entries actually contain that field
-        // (at any nesting depth) and treat it as the repeating component
-        // collection. Only runs when there's no [] marker in the mapping, so
-        // mappings that already work with explicit paths are unaffected.
         if (tokens.length === 1) {
             const foundArray = findArrayContainingLeafKey(sbomData, tokens[0]);
             if (foundArray && foundArray.length > 0) {
@@ -1293,11 +1209,6 @@ function buildManualMappedComponents(sbomData, config) {
             }
             const relativeTokens = getManualRelativeTokens(path, collectionInfo.collectionTokens.join('.'));
             let values = getManualMappedValues(record, relativeTokens, false);
-            // Fallback for schemaless/structured JSON: if a bare leaf field name
-            // (no dots) doesn't exist at the expected depth, search the whole
-            // record for a property with that name, regardless of nesting depth.
-            // Only triggers when the direct lookup found nothing, so existing
-            // working dotted-path mappings are never affected.
             if (values.length === 0 && relativeTokens.length === 1) {
                 values = findManualValuesByLeafName(record, relativeTokens[0]);
             }
@@ -1366,8 +1277,6 @@ function validateManualMappedComponents(sbomData, filename) {
         }
         Object.assign(component, unified);
 
-        // The mapped object is the manual adapter's unified input; semantic
-        // validation is shared with CycloneDX and SPDX.
         return validateComponent(
             component,
             'Manual Mapping',

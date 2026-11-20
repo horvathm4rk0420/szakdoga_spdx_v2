@@ -70,18 +70,14 @@ async function runTooldownloadEnrichment() {
 ;
 
 function resetTooldownloadState() {
-    // Only reset render-time references. editChangeLog and tooldownloadEdits persist across
-    // revalidations so saved edits and the changelog survive mode switches.
     tooldownloadRowRefs = new Map();
     nextRowId = 1;
 }
 ;
 
-// Filter results table
 function filterTable(mode) {
     window.__activeFilterMode = mode;
 
-    // Update active button styles
     const btnAll = document.getElementById('filterAll');
     const btnInvalid = document.getElementById('filterInvalid');
     const btnWarning = document.getElementById('filterWarning');
@@ -174,7 +170,6 @@ function filterTable(mode) {
         const validAttr = row.getAttribute('data-valid');
         const hasWarning = row.getAttribute('data-has-warning') === 'true';
         if (!validAttr) {
-            // Section headers and untagged rows always visible
             row.style.display = '';
             return;
         }
@@ -192,7 +187,6 @@ function filterTable(mode) {
 }
 ;
 
-// Toggle category details rows in the Category summary view
 function toggleCategoryGroup(rowId, buttonEl) {
     const row = document.getElementById(rowId);
     if (!row || !buttonEl) {

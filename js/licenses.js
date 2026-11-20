@@ -1,8 +1,6 @@
-// Simple schema validator
 function validateAgainstSchema(data, schema, required = []) {
     const errors = [];
     
-    // Check required fields
     if (schema.required) {
         schema.required.forEach(field => {
             if (!(field in data)) {
@@ -11,14 +9,12 @@ function validateAgainstSchema(data, schema, required = []) {
         });
     }
     
-    // Check properties
     if (schema.properties) {
         Object.keys(data).forEach(key => {
             const value = data[key];
             const propSchema = schema.properties[key];
             
             if (propSchema) {
-                // Check type
                 if (propSchema.type) {
                     const actualType = Array.isArray(value) ? 'array' : typeof value;
                     if (actualType !== propSchema.type && value !== null) {
@@ -26,7 +22,6 @@ function validateAgainstSchema(data, schema, required = []) {
                     }
                 }
                 
-                // Check array constraints (minItems, maxItems)
                 if (Array.isArray(value) && propSchema.type === 'array') {
                     if (propSchema.minItems !== undefined && value.length < propSchema.minItems) {
                         errors.push({ message: `Array ${key} has ${value.length} items, minimum is ${propSchema.minItems}`, path: key });
@@ -36,7 +31,6 @@ function validateAgainstSchema(data, schema, required = []) {
                     }
                 }
                 
-                // Check enum
                 if (propSchema.enum && !propSchema.enum.includes(value)) {
                     errors.push({ message: `Invalid value for ${key}: must be one of ${propSchema.enum.join(', ')}`, path: key });
                 }
@@ -48,8 +42,6 @@ function validateAgainstSchema(data, schema, required = []) {
 }
 ;
 
-// Hardcoded manual alias map (fallback #1)
-// Keep keys lowercase because lookup normalizes incoming aliases to lowercase.
 const manualLicenseExceptionList = {
     'academic-free-license-2.1': 'AFL-2.1',
     'agpl-3': 'AGPL-3.0-only',
@@ -122,12 +114,6 @@ const manualLicenseExceptionList = {
 };
 ;
 
-/**
- * Normalize license text for display from various license item formats
- * Prioritizes: license.id → license.name → expression → empty string
- * @param {Object} licenseItem - License item from licenses array
- * @returns {string} Normalized license text or empty string
- */
 function normalizeLicenseText(licenseItem) {
     if (!licenseItem) return '';
 
@@ -143,12 +129,6 @@ function normalizeLicenseText(licenseItem) {
 }
 ;
 
-/**
- * Generate a unique sorted key for a license combination
- * Used to group components with identical license sets
- * @param {Array<Object>} licenses - Array of license objects
- * @returns {string} Sorted, space-separated license keys or 'No licenses'
- */
 function getLicenseCombinationKey(licenses) {
     if (!Array.isArray(licenses) || licenses.length === 0) {
         return 'No licenses';
@@ -168,9 +148,7 @@ function getLicenseCombinationKey(licenses) {
 }
 ;
 
-// Build license summary with counts (standalone licenses only)
 function buildLicenseSummary(allResults) {
-    // Map: normalizedLower -> { license: displayString, components: Set of component keys }
     const licenseMap = new Map();
 
     allResults.forEach(result => {
@@ -248,9 +226,6 @@ function getInvalidIssueContext(issueText, componentKey = '') {
     return issueEntry && issueEntry.note ? issueEntry.note : '';
 }
 
-// Returns the user-edited replacement text for an error message, if any was set
-// via the Issue Context popup's "Override error message" field. Falls back to
-// an empty string (meaning: show the original validation error message).
 function getInvalidIssueOverride(issueText, componentKey = '') {
     const store = getInvalidIssueContextStore();
     const issueKey = String(issueText || '').trim();
@@ -294,13 +269,6 @@ function setInvalidIssueContext(issueText, componentKey = '', noteText = '', com
     store.issue[issueKey] = { issueText: issueKey, note: sanitizedNote, overrideMessage: sanitizedOverride };
 }
 
-/**
- * Build grouped summary of invalid issues organized by category
- * Groups errors into License, Copyright, and Structural categories
- * Deduplicates components within each error group
- * @param {Array<Object>} allResults - Array of validation result objects
- * @returns {Array<Object>} Array of issue group objects with subgroups
- */
 function buildInvalidIssueSummary(allResults) {
     const groups = {
         'License related issues': new Map(),
@@ -308,11 +276,6 @@ function buildInvalidIssueSummary(allResults) {
         'Structural / field issues': new Map()
     };
 
-    /**
-     * Classifies an error message into one of three groups
-     * @param {string} message - Error message to classify
-     * @returns {string} Group name
-     */
     const classifyIssueGroup = (error) => {
         if (error && error.category === 'license') {
             return 'License related issues';
@@ -363,11 +326,6 @@ function buildInvalidIssueSummary(allResults) {
         });
     });
 
-    /**
-     * Converts grouped components into sorted subgroups with deduplication
-     * @param {Map} groupMap - Map of issue -> components array
-     * @returns {Array<Object>} Sorted subgroup objects
-     */
     const toSortedSubgroups = (groupMap) => {
         return Array.from(groupMap.entries())
             .map(([issue, components]) => {
@@ -388,9 +346,6 @@ function buildInvalidIssueSummary(allResults) {
         ['Structural / field issues', groups['Structural / field issues']]
     ];
 
-    // Map of issueText -> Map(componentKey -> {name, version, key, note})
-    // Each component keeps its own note; components are never merged into a
-    // shared note so one component's context can never overwrite another's.
     const componentNoteMap = new Map();
     getInvalidIssueContextEntries()
         .filter(entry => entry.scope === 'component')
@@ -438,8 +393,6 @@ function buildInvalidIssueSummary(allResults) {
             }
 
             if (componentNotesForIssue && componentNotesForIssue.size > 0) {
-                // Group component overrides by their displayed message while
-                // retaining the original issue on each component for editing.
                 componentNotesForIssue.forEach(componentEntry => {
                     const displayIssue = componentEntry.overrideMessage
                         ? componentEntry.overrideMessage
@@ -488,20 +441,12 @@ function buildInvalidIssueSummary(allResults) {
 }
 ;
 
-// Hardcoded special license statements that are valid without reference/text match.
-// Keys must be lowercase normalized strings for case-insensitive matching.
 const specialLicenseStatementList = {
     'public domain': true,
     'public-domain': true,
 };
 ;
 
-/**
- * Validate SPDX license IDs in the licenses array
- * Checks each license.id against the reference SPDX license list
- * @param {Object} component - Component object with optional licenses array
- * @returns {Array<Object>} Array of error objects with message and path properties
- */
 function validateLicenses(component) {
     const errors = [];
     
@@ -535,20 +480,13 @@ function validateLicenses(component) {
 }
 ;
 
-/**
- * Validate licenses array against schema constraints (minItems, maxItems)
- * @param {Array} licenses - Licenses array from component
- * @param {Object} licenseChoiceSchema - Schema properties for the licenses choice
- * @returns {Array<Object>} Array of error objects
- */
 function validateLicensesAgainstSchema(licenses, licenseChoiceSchema) {
     const errors = [];
     
     if (!isValidInput(licenses, 'array')) {
         return errors;
     }
-    
-    // Check array length constraints (maxItems, minItems)
+
     if (licenseChoiceSchema.maxItems !== undefined && licenses.length > licenseChoiceSchema.maxItems) {
         errors.push(createError(
             `Licenses array has ${licenses.length} items, but maximum allowed is ${licenseChoiceSchema.maxItems}. Use an SPDX expression instead for multiple licenses.`,
@@ -569,14 +507,6 @@ function validateLicensesAgainstSchema(licenses, licenseChoiceSchema) {
 }
 ;
 
-/**
- * Find a license reference entry by name or SPDX ID
- * Searches licenseReferenceEntries globally
- * Tries: component-specific manual pairing → exact spdxId match → case-insensitive licTypeName → LicenseRef- stripped version
- * @param {string} licenseName - License name or SPDX ID to search for
- * @param {string} componentKey - Optional component key for component-scoped manual pairings
- * @returns {Object|null} Match object with { reference, matchType } or null if not found
- */
 function findLicenseReference(licenseName, componentKey = '') {
     if (typeof licenseName !== 'string') {
         return null;
@@ -594,7 +524,6 @@ function findLicenseReference(licenseName, componentKey = '') {
         return isLikeIdentifier(entry.spdxId) || isLikeIdentifier(entry.licTypeName);
     };
 
-    // Prefer genuine matches for base identifiers, only allow "-like-" when input is also "-like-".
     const findExactMatch = (key, labelSuffix = '') => {
         const inputIsLike = isLikeIdentifier(key);
         const entries = Array.isArray(licenseReferenceEntries) ? licenseReferenceEntries : [];
@@ -612,7 +541,6 @@ function findLicenseReference(licenseName, componentKey = '') {
             if (!inputIsLike) {
                 const nonLike = entriesList.find(entry => !isEntryLike(entry));
                 if (nonLike) return nonLike;
-                // For base identifiers, do not fall back to "-like-" entries.
                 return null;
             }
 
@@ -638,7 +566,6 @@ function findLicenseReference(licenseName, componentKey = '') {
         return null;
     };
 
-    // An explicit user pairing must override incomplete same-name references.
     const pairingAlias = normalized.replace(/^licenseref-/i, '');
     const selectedTarget = manualLicensePairings instanceof Map
         ? (componentKey ? manualLicensePairings.get(`${componentKey}:${normalized}`)
@@ -661,17 +588,12 @@ function findLicenseReference(licenseName, componentKey = '') {
         return directMatch;
     }
 
-    // Fallback: strip "LicenseRef-" prefix (case-insensitive) and retry
     const stripped = normalized.replace(/^licenseref-/i, '');
     if (stripped && stripped !== normalized) {
         const strippedMatch = findExactMatch(stripped, ' (LicenseRef- stripped)');
         if (strippedMatch) {
             return strippedMatch;
         }
-        // If LicenseRef- stripped version didn't match, try stripping a trailing
-        // numeric-only suffix of length >= 4 (e.g., "MIT-68624581" -> "MIT").
-        // Do not strip short numeric suffixes (e.g., "MPL-2") or non-pure numeric suffixes
-        // (e.g., "Apache-200.00").
         const strippedNoTrailingNumbers = String(stripped).replace(/-(\d{4,})$/i, '');
         if (strippedNoTrailingNumbers && strippedNoTrailingNumbers !== stripped) {
             const strippedNumbersMatch = findExactMatch(strippedNoTrailingNumbers, ' (LicenseRef- stripped, trailing numbers removed)');
@@ -681,7 +603,6 @@ function findLicenseReference(licenseName, componentKey = '') {
         }
     }
 
-    // Fallback #1: hardcoded manual alias map.
     const manualAliasTarget = (manualLicenseExceptionList && typeof manualLicenseExceptionList === 'object')
         ? (manualLicenseExceptionList[normalized] || manualLicenseExceptionList[stripped] || '')
         : '';
@@ -691,8 +612,6 @@ function findLicenseReference(licenseName, componentKey = '') {
             return manualAliasMatch;
         }
 
-        // Some reference files retain the non-SPDX alias as their entry name.
-        // The alias is still a valid manual match when its mapped target is absent.
         const aliasReferenceMatch = findExactMatch(normalized, ' (manual alias reference)');
         if (aliasReferenceMatch) {
             return aliasReferenceMatch;
@@ -703,7 +622,6 @@ function findLicenseReference(licenseName, componentKey = '') {
 }
 ;
 
-// Extract license text from schema-specific license structures
 function extractLicenseDocumentText(licenseItem) {
     if (!licenseItem || typeof licenseItem !== 'object') {
         return '';
@@ -751,13 +669,11 @@ function extractLicenseDocumentText(licenseItem) {
 }
 ;
 
-// Calculate token-overlap similarity (Jaccard) as a percentage
 function calculateLicenseTextMatchPercent(sourceText, referenceText) {
     if (typeof sourceText !== 'string' || typeof referenceText !== 'string') {
         return 0;
     }
 
-    // Ignore all case and whitespace differences during comparison.
     const normalize = (text) => text
         .toLowerCase()
         .replace(/\s+/g, ' ')
@@ -766,7 +682,6 @@ function calculateLicenseTextMatchPercent(sourceText, referenceText) {
     const normalizedSource = normalize(sourceText);
     const normalizedReference = normalize(referenceText);
 
-    // If only case/whitespace differed, treat as full match.
     if (normalizedSource === normalizedReference) {
         return 100;
     }
@@ -795,17 +710,6 @@ function calculateLicenseTextMatchPercent(sourceText, referenceText) {
 }
 ;
 
-/**
- * Validate each license text against the uploaded reference list
- * Evaluates Jaccard token overlap (≥80% = valid)
- * Supports single licenses, flat AND/OR expressions, and parenthesized
- * grouped mixed AND/OR expressions (e.g. "(MIT AND Apache-2.0) OR BSD-3-Clause").
- * Unparenthesized mixed AND/OR expressions remain rejected as ambiguous.
- * For expressions: AND requires all terms valid, OR requires ≥1 term valid,
- * applied recursively for grouped expressions.
- * @param {Object} component - Component with licenses array
- * @returns {Array<Object>} Array of validation error objects
- */
 function validateLicenseTextMatches(component) {
     const errors = [];
     const noReferenceMessage = 'No reference available, manual checking required!';
@@ -814,8 +718,6 @@ function validateLicenseTextMatches(component) {
 
     if (!isValidInput(component, 'object')) return errors;
 
-    // Extract component key for component-scoped manual license pairings
-    // Use objectPath as primary source (from validation result), fall back to constructed key
     let componentKey = '';
     if (typeof component.objectPath === 'string' && component.objectPath.trim()) {
         componentKey = component.objectPath.trim();
@@ -919,7 +821,6 @@ function validateLicenseTextMatches(component) {
         const path = getLicensePath(licenseItem, idx);
         const operator = getLicenseOperator(licenseName);
 
-        // Check for ambiguous/malformed mixed AND+OR (unsupported without grouping)
         if (operator === 'MIXED') {
             licenseItem.licenseMatchPercent = 0;
             licenseItem.licenseMatchValid = false;
@@ -933,8 +834,6 @@ function validateLicenseTextMatches(component) {
         }
 
         const terms = splitLicenseTerms(licenseName, operator);
-        // Unified groups already carry text for every individual term, including
-        // intentionally empty text. Never reuse a sibling term as shared text.
         const sourceText = Array.isArray(licenseItem.sourceItems)
             ? ''
             : extractLicenseDocumentText(licenseItem)
@@ -943,7 +842,6 @@ function validateLicenseTextMatches(component) {
             ? licenseItem.extractedLicenseTextById
             : null;
 
-        // Build term-to-evidence-index mapping from sourceItems
         const termEvidenceIndexMap = {};
         if (Array.isArray(licenseItem.sourceItems)) {
             licenseItem.sourceItems.forEach((sourceItem, termIndex) => {
@@ -955,8 +853,6 @@ function validateLicenseTextMatches(component) {
             });
         }
 
-        // Do not return early when SBOM license text is missing.
-        // Category assignment is done in term evaluation once reference is found.
 
         if (terms.length === 0) {
             licenseItem.licenseMatchPercent = 0;
@@ -966,7 +862,6 @@ function validateLicenseTextMatches(component) {
             return;
         }
 
-        // Evaluate each term
         const termResults = evaluateLicenseTerms(terms, sourceText, extractedTextById, noReferenceMessage, componentKey, termEvidenceIndexMap);
         const fallbackCopyrights = [];
         termResults.forEach((termResult, termIndex) => {
@@ -1011,9 +906,6 @@ function validateLicenseTextMatches(component) {
                 .filter(Boolean)
         ));
 
-        // Determine expression validity and display percentage.
-        // Grouped (parenthesized) expressions are evaluated recursively via the
-        // expression tree so nested AND/OR grouping is honored correctly.
         let isExpressionValid;
         let displayPercent;
         if (operator === 'GROUPED') {
@@ -1038,7 +930,6 @@ function validateLicenseTextMatches(component) {
         }
         const isFinalValid = isExpressionValid && !hasManualCheckIssue;
 
-        // Update license item with results
         licenseItem.licenseMatchPercent = Number.isFinite(displayPercent) ? displayPercent : 0;
         licenseItem.licenseMatchValid = isFinalValid;
         licenseItem.licenseMatchCategory = extractCategories(termResults).join(', ');
@@ -1059,7 +950,6 @@ function validateLicenseTextMatches(component) {
             });
         }
 
-        // Create error(s) if expression invalid
         if (!isFinalValid) {
             const failedTerms = termResults.filter(r => !r.valid);
 
@@ -1092,16 +982,6 @@ function validateLicenseTextMatches(component) {
     return errors;
 }
 
-/**
- * Evaluates each license term against reference list
- * @param {Array<string>} terms - License term names
- * @param {string} sourceText - Source license text from SBOM
- * @param {Object} extractedTextById - Per-term extracted text map
- * @param {string} noRefMsg - "No reference available" message
- * @param {string} componentKey - Optional component key for component-scoped manual license pairings
- * @param {Object} termEvidenceIndexMap - Optional mapping of term names to evidence indices
- * @returns {Array<Object>} Array of term result objects with valid, matchPercent, category, reason
- */
 function evaluateLicenseTerms(terms, sourceText, extractedTextById, noRefMsg, componentKey = '', termEvidenceIndexMap = {}) {
     return terms.map((term, termIndex) => {
         const result = {
@@ -1134,8 +1014,6 @@ function evaluateLicenseTerms(terms, sourceText, extractedTextById, noRefMsg, co
             return result;
         }
 
-        // Category should be available whenever reference match exists,
-        // even if text match cannot be calculated.
         result.category = referenceMatch.reference.category || '';
         result.referenceSpdxId = referenceMatch.reference.spdxId || '';
         result.needsManualPairing = !result.referenceSpdxId.trim();
@@ -1193,9 +1071,6 @@ function findBestLicenseReference(licenseName, sourceText, componentKey = '') {
         !exactSpdxCandidates.includes(entry) && !exactLicenseNameCandidates.includes(entry)
     );
 
-    // Exact SPDX IDs are authoritative. Exact license names are the next
-    // safest option. Variant IDs such as MIT-like-3 are only considered when
-    // no exact reference exists for the requested license.
     const candidates = exactSpdxCandidates.length > 0
         ? exactSpdxCandidates
         : exactLicenseNameCandidates.length > 0
@@ -1218,7 +1093,6 @@ function findBestLicenseReference(licenseName, sourceText, componentKey = '') {
 }
 ;
 
-// Split eligible SBOM license text into license and copyright sections for fallback matching.
 function tryLicenseTextFallback(term, sourceText, referenceText) {
     const eligibleTerms = new Set(['MIT', 'BSD-3-Clause', 'ISC']);
     if (!eligibleTerms.has(term) || typeof sourceText !== 'string' || typeof referenceText !== 'string') {
@@ -1268,7 +1142,6 @@ function tryLicenseTextFallback(term, sourceText, referenceText) {
 }
 ;
 
-// Remove parentheses surrounding the outside of a license name or expression.
 function normalizeLicenseName(value) {
     let normalized = String(value || '').trim();
     while (normalized.startsWith('(')) normalized = normalized.slice(1).trim();

@@ -4,23 +4,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SBOM Validator - CycloneDX &amp; SPDX</title>
+    <title>SBOM Validator - SPDX &amp; CycloneDX</title>
     <link rel="stylesheet" href="css/styles.css?v=20261026-compact-overrides">
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔍 SBOM Validator</h1>
-            <p>Validate CycloneDX (1.4–1.7) and SPDX (2.2, 2.3) SBOM files</p>
-            <p>internal - Open Source Office (K-DPA/O) 03/2026 - created with AI assistance, results maybe wrong and need verification</p>
-            <p>early alpha version for testing and feedback &nbsp;|&nbsp; <span id="appVersion" style="font-size:0.85em;opacity:0.8;">v0.0.0-dev</span></p>
+            <h1>SBOM Validator</h1>
+            <p>Validate SPDX (2.2, 2.3) and CycloneDX (1.4–1.7) SBOM files</p>
+            <p> <span id="appVersion" style="font-size:0.85em;opacity:0.8;">v0.0.0-dev</span></p>
         </div>
 
         <div class="content">
             <div class="upload-grid">
                 <div class="schema-upload-section upload-card">
-                    <h3>📁 Schema File</h3>
-                    <p class="upload-help">Upload CycloneDX schema (JSON/XSD) or SPDX schema.</p>
+                    <h3>Schema File</h3>
+                    <p class="upload-help">Upload or SPDX schema or CycloneDX schema (JSON/XSD).</p>
                     <div class="upload-actions">
                         <input type="file" id="schemaInput" accept=".json,.xsd" style="display: none;" />
                         <button class="schema-btn" onclick="document.getElementById('schemaInput').click()">
@@ -29,27 +28,27 @@
                         <button class="schema-btn manual-mapping-start-btn" id="startManualMappingButton" type="button">
                             Start Manual Mapping
                         </button>
-                        <span id="schemaStatus" class="schema-status schema-missing">✗ Not Loaded</span>
+                        <span id="schemaStatus" class="schema-status schema-missing">X Not Loaded</span>
                     </div>
                     <p id="schemaFileName" class="uploaded-file-name"></p>
                 </div>
 
                 <div class="schema-upload-section upload-card">
-                    <h3>📄 License Reference File</h3>
+                    <h3>License Reference File</h3>
                     <p class="upload-help">Upload JSON list with licTypeName, spdxId, category, and LicenseText.</p>
                     <div class="upload-actions">
                         <input type="file" id="licenseRefInput" accept=".json" style="display: none;" />
                         <button class="schema-btn" onclick="document.getElementById('licenseRefInput').click()">
                             Upload Reference
                         </button>
-                        <span id="licenseRefStatus" class="schema-status schema-missing">✗ Not Loaded</span>
+                        <span id="licenseRefStatus" class="schema-status schema-missing">X Not Loaded</span>
                     </div>
                     <p id="licenseRefFileName" class="uploaded-file-name"></p>
                 </div>
 
                 <div class="upload-section upload-card" id="uploadSection">
-                    <h2>📦 SBOM File</h2>
-                    <p class="upload-help">Drag and drop or browse for CycloneDX JSON/XML or SPDX JSON.</p>
+                    <h2>SBOM File</h2>
+                    <p class="upload-help">Drag and drop or browse for SPDX JSON or CycloneDX JSON/XML.</p>
                     <div class="file-input-wrapper">
                         <input type="file" id="fileInput" accept=".json,.xml" />
                         <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
@@ -125,7 +124,7 @@
                             <input type="text" id="noticeSearchPath" class="enrichment-input" placeholder="e.g. C:\\notice-files" />
                             <input type="file" id="noticeFileInput" webkitdirectory directory multiple style="display:none;" onchange="loadNoticeFiles(event)" />
                             <button class="schema-btn" type="button" onclick="document.getElementById('noticeFileInput').click()">Load Notice Files</button>
-                            <span id="noticeFileStatus" class="schema-status schema-missing">✗ Not Loaded</span>
+                            <span id="noticeFileStatus" class="schema-status schema-missing">X Not Loaded</span>
                         </div>
                         <div class="enrichment-input-row" style="margin-top:8px;">
                             <label style="font-weight:var(--font-weight-bold); white-space:nowrap; margin-right:6px;">AI Token</label>
@@ -134,7 +133,7 @@
                                 <option value="gpt-4o-mini">gpt-4o-mini</option>
                                 <option value="gpt-4o">gpt-4o</option>
                             </select>
-                            <span id="azureAiTokenStatus" class="schema-status schema-missing">✗ No Token</span>
+                            <span id="azureAiTokenStatus" class="schema-status schema-missing">X No Token</span>
                         </div>
                     </div>
                 </div>
@@ -153,118 +152,6 @@
             <div id="results"></div>
         </div>
     </div>
-
-    <!-- Global State -->
-    
-
-    <!-- Utility Functions -->
-    
-    
-    
-    
-    
-
-    <!-- Copyright Validation -->
-    
-    
-    
-
-    <!-- Schema Functions -->
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-
-    <!-- License Validation -->
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-
-    <!-- CycloneDX Validation -->
-    
-    
-
-    <!-- XML Validation -->
-    
-    
-    
-
-    <!-- SPDX Validation -->
-    
-    
-    
-
-    <!-- Manual Mapping Validation -->
-    
-
-    <!-- Display & UI Functions -->
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-
-    <!-- Error Handling -->
-    
-    
-    
-
-    <!-- File Upload & Event Listeners -->
-    
-    
-    
     <script src="js/core.js?v=consolidated1"></script>
     <script src="js/schema.js?v=consolidated1"></script>
     <script src="js/licenses.js?v=consolidated1"></script>

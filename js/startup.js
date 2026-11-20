@@ -1,11 +1,9 @@
-// Re-validate SBOM if file is loaded
 function revalidateIfLoaded() {
     if (currentFileType === 'manual-json' && currentSbomData) {
         validateManualMappedComponents(currentSbomData, currentFileName);
         return;
     }
     if (!currentSbomFile) return;
-    // Always re-read the SBOM from the original File object (bypasses any cached parsed data)
     const reader = new FileReader();
     reader.onload = async (e) => {
         try {
@@ -44,12 +42,10 @@ function revalidateIfLoaded() {
 }
 ;
 
-// File upload handling
 async function handleFileSelect(event) {
     const file = event.target.files[0];
     if (!file) return;
     
-    // Security: Check file size
     if (file.size > MAX_FILE_SIZE) {
         showError(`File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB.`);
         event.target.value = '';
@@ -61,17 +57,13 @@ async function handleFileSelect(event) {
         fileNameElement.textContent = '';
     }
     
-    // Store raw File object so revalidateIfLoaded() always re-reads from source
     currentSbomFile = file;
-
-    // New file — discard any session edits and changelog from the previous file
     editChangeLog = [];
     if (tooldownloadEdits instanceof Map) tooldownloadEdits.clear();
     pendingImportedStatusEntries = null;
     window.__manualErrorOverrides = {};
     window.__manualFalsePositives = {};
 
-    // Detect file type
     const fileExt = file.name.split('.').pop().toLowerCase();
     currentFileType = fileExt === 'xml' ? 'xml' : 'json';
     
@@ -79,11 +71,9 @@ async function handleFileSelect(event) {
     reader.onload = async (e) => {
         try {
             if (currentFileType === 'xml') {
-                // Parse XML
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(e.target.result, 'text/xml');
                 
-                // Check for parse errors
                 const parseError = xmlDoc.querySelector('parsererror');
                 if (parseError) {
                     showError('Invalid XML file: ' + parseError.textContent);
@@ -104,14 +94,12 @@ async function handleFileSelect(event) {
                 }
                 await validateXMLSBOM(xmlDoc, file.name);
             } else {
-                // Parse JSON
                 const sbomData = JSON.parse(e.target.result);
                 currentSbomData = sbomData;
                 currentFileName = escapeHtml(file.name);
                 if (fileNameElement) {
                     fileNameElement.textContent = `Uploaded: ${file.name}`;
                 }
-                // Route to SPDX or CycloneDX validator, but preserve custom structured JSON for manual mapping.
                 if (sbomData.spdxVersion) {
                     currentFileType = 'spdx';
                     await validateSPDXSBOM(sbomData, file.name);
@@ -138,9 +126,7 @@ async function handleFileSelect(event) {
 }
 ;
 
-// Initialize event listeners and app version display
 function initializeApp() {
-    // Set app version
     const appVersionElement = document.getElementById('appVersion');
     if (appVersionElement) appVersionElement.textContent = APP_VERSION;
 
@@ -148,14 +134,12 @@ function initializeApp() {
         initializeManualMappingUi();
     }
 
-    // Schema upload handler
     document.getElementById('schemaInput').addEventListener('change', (e) => loadSchemaFile(e));
     const licenseRefInput = document.getElementById('licenseRefInput');
     if (licenseRefInput) {
         licenseRefInput.addEventListener('change', (e) => loadLicenseReferenceFile(e));
     }
     
-    // Add event listeners for validation options to re-validate on change
     document.getElementById('includeMetadataComponent').addEventListener('change', revalidateIfLoaded);
     document.getElementById('includeMetadataTools').addEventListener('change', revalidateIfLoaded);
     document.getElementById('verboseMode').addEventListener('change', revalidateIfLoaded);
@@ -176,14 +160,12 @@ function initializeApp() {
         updateValidationModeDesc();
     }
 
-    // File upload handling
     const fileInput = document.getElementById('fileInput');
     const uploadSection = document.getElementById('uploadSection');
     const fileName = document.getElementById('fileName');
 
     fileInput.addEventListener('change', handleFileSelect);
 
-    // Drag and drop
     uploadSection.addEventListener('dragover', (e) => {
         e.preventDefault();
         uploadSection.classList.add('dragover');
@@ -204,7 +186,6 @@ function initializeApp() {
     });
 }
 
-// Auto-initialize on DOM load
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeApp);
 } else {

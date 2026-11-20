@@ -1,11 +1,8 @@
-// Copyright format validator — check if copyright string contains recognized indicators
-// Indicators can be extended by adding to the array
 function getCopyrightIndicators() {
     return ['Copyright', '(c)', '(C)', '©'];
 }
 ;
 
-// Detect copyright values that are explicitly blocked as generic copyrights.
 function isGenericCopyright(copyrightText) {
     if (typeof copyrightText !== 'string') return false;
 
@@ -32,20 +29,17 @@ function isGenericCopyright(copyrightText) {
 }
 ;
 
-// Copyright format validation
 function isValidCopyrightFormat(copyrightText) {
     if (typeof copyrightText !== 'string' || copyrightText.trim() === '') {
-        return false; // Empty or non-string is invalid
+        return false;
     }
     if (copyrightText === 'NOASSERTION') {
-        return false; // NOASSERTION is not valid
+        return false;
     }
 
     return getCopyrightValidationDetails(copyrightText).valid;
 }
 
-// Add new phrases here when a copyright entry may validly begin with them.
-// Matching is case-insensitive and is restricted to the beginning of an entry.
 function getCopyrightValidStartingPhrases() {
     return ['Author:', 'Author(s):', 'author:', 'author(s):', 'Developer:', 'Developer(s):'];
 }
@@ -74,25 +68,19 @@ function getCopyrightValidationDetails(copyrightText) {
 }
 ;
 
-// Schema validation
 function isValidSchema(data) {
-    // Check basic JSON Schema properties
     if (typeof data !== 'object' || data === null) {
         return false;
     }
 
-    // Accept SPDX schemas (have spdxVersion and packages properties)
     if (data.properties && data.properties.spdxVersion && data.properties.packages) {
         return true;
     }
     
-    // For CycloneDX schemas, check for required schema properties
     if (!data.$schema && !data.definitions && !data.properties && !data.type) {
         return false;
     }
     
-    // Check for CycloneDX-specific structure
-    // Should have definitions for component, metadata, etc.
     if (!data.definitions || !data.definitions.component) {
         return false;
     }
@@ -101,29 +89,23 @@ function isValidSchema(data) {
 }
 ;
 
-// Update schema status indicator in UI
 function updateSchemaStatus(elementId, loaded, filename = '', schemaType = '') {
     const element = document.getElementById(elementId);
     if (loaded) {
         element.className = 'schema-status schema-loaded';
-        // Security: Escape filename to prevent XSS
         const safeFilename = escapeHtml(filename);
         const typeInfo = schemaType ? ` (${schemaType})` : '';
         element.textContent = `✓ Loaded${typeInfo}${filename ? ': ' + safeFilename : ''}`;
     } else {
         element.className = 'schema-status schema-missing';
-        element.textContent = '✗ Not Loaded';
+        element.textContent = 'X Not Loaded';
     }
 }
 ;
 
-// Check if any schemas are loaded (CycloneDX, SPDX, or XSD)
 function getSchemasIfLoaded() {
-    // Check for CycloneDX schemas
     const hasCycloneDX = schema14 || schema15 || schema16 || schema17;
-    // Check for SPDX schemas
     const hasSpdx = spdxSchema22 || spdxSchema23;
-    // Check for XSD schema
     const hasXsd = xsdSchema;
     
     if (!hasCycloneDX && !hasSpdx && !hasXsd) {
@@ -145,21 +127,17 @@ function getSchemasIfLoaded() {
 }
 ;
 
-// Pick best matching schema: exact version first, then nearest higher, then lower
 function pickSchema(schemas, specVersion) {
     const order = ['1.4', '1.5', '1.6', '1.7'];
     const map = { '1.4': schemas.schema14, '1.5': schemas.schema15, '1.6': schemas.schema16, '1.7': schemas.schema17 };
     if (map[specVersion]) return map[specVersion];
     const idx = order.indexOf(specVersion);
-    // Try higher versions first (compatible superset)
     for (let i = idx + 1; i < order.length; i++) { if (map[order[i]]) return map[order[i]]; }
-    // Fallback to lower versions
     for (let i = idx - 1; i >= 0; i--) { if (map[order[i]]) return map[order[i]]; }
     return null;
 }
 ;
 
-// Show an info panel telling the user which schema file to upload
 function showSchemaNeededInfo(specVersion) {
     const resultsDiv = document.getElementById('results');
     const sv = escapeHtml(specVersion || 'unknown');
@@ -177,7 +155,6 @@ function showSchemaNeededInfo(specVersion) {
 }
 ;
 
-// Detect whether an XML SBOM is CycloneDX or SPDX.
 function detectXmlSbomFormat(xmlDoc) {
     const root = xmlDoc && xmlDoc.documentElement ? xmlDoc.documentElement : null;
     if (!root) {
@@ -212,7 +189,6 @@ function detectXmlSbomFormat(xmlDoc) {
 }
 ;
 
-// Convert SPDX XML into the SPDX JSON-like shape used by the existing SPDX validator.
 function parseSpdxXmlDocument(xmlDoc) {
     const root = xmlDoc && xmlDoc.documentElement ? xmlDoc.documentElement : null;
     if (!root) return null;
@@ -299,7 +275,6 @@ function parseSpdxXmlDocument(xmlDoc) {
 }
 ;
 
-// Schema upload handler
 function loadSchemaFile(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -308,8 +283,7 @@ function loadSchemaFile(event) {
     if (schemaFileName) {
         schemaFileName.textContent = '';
     }
-    
-    // Security: Check file size
+
     if (file.size > MAX_FILE_SIZE) {
         alert(`File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB.`);
         event.target.value = '';
@@ -318,12 +292,11 @@ function loadSchemaFile(event) {
 
     const reader = new FileReader();
     
-    // Check if it's an XSD file
     if (file.name.endsWith('.xsd')) {
-        schemaFileXsd = file;  // Store raw File for future re-reads
+        schemaFileXsd = file;
         reader.onload = (e) => {
             try {
-                xsdSchema = e.target.result;  // Store as text
+                xsdSchema = e.target.result;
                 updateSchemaStatus('schemaStatus', true, file.name, 'XSD (XML)');
                 if (schemaFileName) {
                     schemaFileName.textContent = `Uploaded: ${file.name}`;
@@ -340,12 +313,10 @@ function loadSchemaFile(event) {
         return;
     }
     
-    // JSON schema handling
     reader.onload = (e) => {
         try {
             const data = JSON.parse(e.target.result);
-            
-            // Validate that it's a JSON schema
+
             if (!isValidSchema(data)) {
                 alert(`Invalid schema file: The uploaded file does not appear to be a valid CycloneDX or SPDX JSON schema.`);
                 if (schemaFileName) {
@@ -357,19 +328,16 @@ function loadSchemaFile(event) {
             const schemaId = data.$id || '';
             let detectedVersion = '';
 
-            // --- SPDX schema detection ---
             const isSpdx = data.properties && data.properties.spdxVersion && data.properties.packages;
             if (isSpdx) {
-                // Detect 2.3 vs 2.2 from $id, title, or spdxVersion enum
                 const title = (data.title || '').toLowerCase();
                 if (schemaId.includes('2.3') || title.includes('2.3')) {
                     spdxSchema23 = data;
-                    schemaFileSpdx23 = file;  // Store raw File
+                    schemaFileSpdx23 = file;
                     detectedVersion = 'SPDX 2.3';
                 } else {
-                    // Default to 2.2 for spdx.org/rdf/terms without sub-path
                     spdxSchema22 = data;
-                    schemaFileSpdx22 = file;  // Store raw File
+                    schemaFileSpdx22 = file;
                     detectedVersion = 'SPDX 2.2';
                 }
                 updateSchemaStatus('schemaStatus', true, file.name, detectedVersion);
@@ -377,7 +345,6 @@ function loadSchemaFile(event) {
                 return;
             }
             
-            // --- CycloneDX schema detection ---
             const cdxVersions = ['1.4', '1.5', '1.6', '1.7'];
             let matchedVersion = cdxVersions.find(v => schemaId.includes(v));
             if (!matchedVersion && data.properties?.specVersion?.enum) {
@@ -406,7 +373,6 @@ function loadSchemaFile(event) {
                 return;
             }
             
-            // Re-validate if an SBOM file has already been loaded
             revalidateIfLoaded();
         } catch (error) {
             alert(`Error parsing schema file: ${error.message}`);
@@ -419,7 +385,6 @@ function loadSchemaFile(event) {
 }
 ;
 
-// Load reference JSON file used for license-text matching
 function loadLicenseReferenceFile(event) {
     const file = event.target.files[0];
     if (!file) return;

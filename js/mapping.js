@@ -13,8 +13,7 @@ function openManualLicenseMappingModal(rawLicenseName, triggerElement = null) {
     const componentRow = triggerElement && typeof triggerElement.closest === 'function'
         ? triggerElement.closest('#componentsTable tbody tr[data-component-key]')
         : null;
-    
-    // Set component key after it's determined
+
     pendingComponentKey = componentRow ? componentRow.dataset.componentKey : '';
     
     manualLicenseNavigationContext = {
@@ -31,7 +30,6 @@ function openManualLicenseMappingModal(rawLicenseName, triggerElement = null) {
         subtitleEl.textContent = `Pair unresolved license: ${normalized}`;
     }
 
-    // Build unique selectable list from loaded reference entries.
     const seen = new Set();
     manualLicenseReferenceOptions = (Array.isArray(licenseReferenceEntries) ? licenseReferenceEntries : [])
         .map(entry => {
@@ -104,11 +102,8 @@ function applyManualLicensePairing() {
     if (!rawAlias || !selectedSpdxId) {
         return;
     }
-
-    // Normalize license name the same way as during validation lookup
     const alias = normalizeLicenseName(rawAlias).toLowerCase();
 
-    // Store pairing with component key for component-scoped matching
     const componentKey = typeof pendingComponentKey === 'string' && pendingComponentKey 
         ? pendingComponentKey 
         : '';
@@ -119,10 +114,8 @@ function applyManualLicensePairing() {
         : '';
     
     if (componentKey) {
-        // Component-specific pairing: componentKey:licenseName -> spdxId
         manualLicensePairings.set(`${componentKey}:${alias}`, selectedSpdxId);
     } else {
-        // Fallback to global pairing if no component context
         manualLicensePairings.set(alias, selectedSpdxId);
     }
 
@@ -161,8 +154,7 @@ function closeManualLicenseMappingModal() {
 
     modal.classList.remove('open');
     document.body.classList.remove('license-modal-open');
-    
-    // Clear pending context after modal closes
+
     pendingManualLicenseName = '';
     pendingComponentKey = '';
 }
@@ -1266,7 +1258,6 @@ window.findRelevantNonCommercialLicenseTextMatches =
     findRelevantNonCommercialLicenseTextMatches;
 ;
 
-// Display validation results in the UI
 function displayResults(sbomData, allResults, overallValid, filename, verbose, validationMode = 'standard', isManualMapping = false) {
     const resultsDiv = document.getElementById('results');
     currentValidationMode = validationMode;
@@ -1315,7 +1306,6 @@ function displayResults(sbomData, allResults, overallValid, filename, verbose, v
         pendingImportedStatusEntries = null;
     }
     
-    // Build effective result view with manual overrides applied to errors.
     const effectiveResults = allResults.map((r, idx) => {
         const compKey = r.objectPath || `components[${idx}]`;
         const originalErrors = Array.isArray(r.errors) ? r.errors : [];
@@ -1637,7 +1627,6 @@ function displayResults(sbomData, allResults, overallValid, filename, verbose, v
         const terms = splitLicenseTerms(licenseName, operator);
         if (!operator || terms.length < 2) return '';
 
-        // Build term-to-evidence-index mapping from sourceItems
         const termEvidenceIndexMap = {};
         if (Array.isArray(licenseItem.sourceItems)) {
             licenseItem.sourceItems.forEach(sourceItem => {
@@ -1713,7 +1702,6 @@ function displayResults(sbomData, allResults, overallValid, filename, verbose, v
         };
 
         if (categoryValues.length === 0) {
-            // No categories found, add to "No Category"
             if (!categorySummaryMap.has('No Category')) {
                 categorySummaryMap.set('No Category', []);
             }
@@ -1728,15 +1716,12 @@ function displayResults(sbomData, allResults, overallValid, filename, verbose, v
         }
 
         (result.licenses || []).forEach(licenseItem => {
-            // Include in "No Category" only if there are actual unmatched reference terms
-            // or if the license has no category assigned
             const hasUnmatchedTerms = Array.isArray(licenseItem && licenseItem.unmatchedReferenceTerms)
                 && licenseItem.unmatchedReferenceTerms.length > 0;
             const categoryRaw = (licenseItem && typeof licenseItem.licenseMatchCategory === 'string')
                 ? licenseItem.licenseMatchCategory.trim()
                 : '';
-            
-            // Skip only if there's a category AND no unmatched terms
+
             if (categoryRaw && !hasUnmatchedTerms) {
                 return;
             }
@@ -1810,7 +1795,6 @@ function displayResults(sbomData, allResults, overallValid, filename, verbose, v
 
     let html = '';
 
-    // Overall status - Security: Escape filename
     const safeFilename = escapeHtml(filename);
     if (overallValid && invalidCount === 0) {
         html += `<div class="validation-result success">
@@ -1824,12 +1808,11 @@ function displayResults(sbomData, allResults, overallValid, filename, verbose, v
         </div>`;
     } else {
         html += `<div class="validation-result error">
-            <h2>✗ Validation Failed</h2>
+            <h2>X Validation Failed</h2>
             <p>${isManualMapping ? 'Mapped SBOM fields contain validation errors.' : `SBOM file "${safeFilename}" has validation errors.`}</p>
         </div>`;
     }
 
-    // Summary cards - Security: Escape spec version
     const specVersion = (sbomData instanceof Document)
         ? (sbomData.documentElement.getAttribute('version') || 'N/A')
         : escapeHtml(sbomData.spdxVersion || sbomData.specVersion || 'N/A');
@@ -1877,7 +1860,6 @@ function displayResults(sbomData, allResults, overallValid, filename, verbose, v
         </div>`;
     }
 
-    // Filter bar
     html += `<div class="filter-bar">
         <span class="filter-bar-label">Filter:</span>
         <button class="filter-btn active" id="filterAll" onclick="filterTable('all')">All (${allResults.length})</button>
@@ -1998,8 +1980,6 @@ function displayResults(sbomData, allResults, overallValid, filename, verbose, v
             const subRowId = `invalidIssueSubGroup_${groupIdx}_${subIdx}`;
             const noteIssueText = subgroup.originalIssue || subgroup.issue.replace(/ \(component-specific context\)$/, '') || subgroup.issue;
             const issueNote = subgroup.note || '';
-            // Single-component override groups can edit the issue from their
-            // heading; merged groups edit each component from its own row.
             const soloComponent = subgroup.componentSpecific ? (subgroup.components && subgroup.components[0]) : null;
             const soloComponentKey = soloComponent ? (soloComponent.key || `${soloComponent.name || 'N/A'}::${soloComponent.version || 'N/A'}`) : '';
             const soloComponentName = soloComponent ? (soloComponent.name || 'N/A') : '';
@@ -2069,7 +2049,6 @@ function displayResults(sbomData, allResults, overallValid, filename, verbose, v
 
     html += `</tbody></table></div>`;
 
-    // Components table
     const showTypeAndPurl = validationMode === 'internal';
     const resultColumnCount = validationMode === 'tooldownload'
         ? (showTypeAndPurl ? '11' : '9')
@@ -2091,23 +2070,19 @@ function displayResults(sbomData, allResults, overallValid, filename, verbose, v
         </thead>
         <tbody>`;
 
-    // Save last display inputs to allow re-rendering after manual overrides
     window.__lastDisplayState = { sbomData, allResults, overallValid, filename, verbose, validationMode, isManualMapping };
 
     let currentSection = '';
     effectiveResults.forEach((result, resultIdx) => {
         if (result.section !== currentSection) {
-            // Security: Escape section name
             html += `<tr><td colspan="${resultColumnCount}" class="section-header">${escapeHtml(result.section)}</td></tr>`;
             currentSection = result.section;
         }
 
         const indentClass = result.indent > 0 ? 'nested' : '';
 
-        // Compute component key for manual overrides
         const compKey = result.objectPath || `components[${resultIdx}]`;
 
-        // Original errors array
         const originalErrors = Array.isArray(result.errors) ? result.errors : [];
         const manualOverrides = getManualOverridesForComponent(compKey);
         const filteredErrors = originalErrors.filter(e => {
@@ -2115,14 +2090,12 @@ function displayResults(sbomData, allResults, overallValid, filename, verbose, v
             return !manualOverrides.has(msg);
         });
 
-        // Component is considered valid if there are no remaining (non-overridden) errors
         const isNowValid = filteredErrors.length === 0;
         const isFalsePositiveOverridden = result.isFalsePositiveOverridden || false;
         const isEffectivelyValid = isNowValid && !isFalsePositiveOverridden;
         const statusClass = isEffectivelyValid ? 'status-valid' : 'status-invalid';
-        const statusText = isEffectivelyValid ? '✓ Valid' : '✗ Invalid';
+        const statusText = isEffectivelyValid ? '✓ Valid' : 'X Invalid';
 
-        // Format licenses - Security: Escape all license data
         let licensesHtml = '';
         const renderedCanonicalExpressions = new Set();
         if (result.licenses.length > 0) {
@@ -2147,13 +2120,8 @@ function displayResults(sbomData, allResults, overallValid, filename, verbose, v
                     if (renderedCanonicalExpressions.has(canonicalGroupKey)) return;
                     renderedCanonicalExpressions.add(canonicalGroupKey);
 
-                    // Apply the three-badge limit across the whole component,
-                    // regardless of how many expressions or operators it has.
                     const canonicalItems = result.licenses.filter(item => item.licenseName);
                     const badgeGroupId = `license-badge-group-${resultIdx}`;
-                    // Cache per-expression leaf display metadata so grouped
-                    // expressions keep both their operators and visible
-                    // parentheses when shown as individual badges.
                     const expressionJoinCache = new Map();
                     const getJoinOperatorsForExpression = (expression) => {
                         if (!expression) return [];
@@ -2278,12 +2246,10 @@ function displayResults(sbomData, allResults, overallValid, filename, verbose, v
                         : '';
                     const termBadges = renderLicenseTermBadges(lic, result, unmatchedTerms);
                     if (termBadges) {
-                        licensesHtml += `<div class="license-item">📋 ${licenseText}<span class="license-expression-list">${termBadges}</span></div>`;
+                        licensesHtml += `<div class="license-item">${licenseText}<span class="license-expression-list">${termBadges}</span></div>`;
                     } else if (hasMatchPercent) {
-                        // Prefer per-term extracted text, then support both top-level and nested license text.
                         const extractedById = lic.extractedLicenseTextById || {};
                         const licenseIdKey = lic.license.id || lic.license.name || '';
-                        // Get evidence index from sourceItems if available
                         let evidenceIndex = -1;
                         if (Array.isArray(lic.sourceItems)) {
                             const sourceItem = lic.sourceItems.find(s => s.licenseName === licenseIdKey);
@@ -2334,7 +2300,6 @@ function displayResults(sbomData, allResults, overallValid, filename, verbose, v
                                     ? 'license-expression-valid'
                                     : 'license-expression-invalid';
 
-                                // Get evidence index from sourceItems if available
                                 let evidenceIndex = -1;
                                 if (Array.isArray(lic.sourceItems)) {
                                     const sourceItem = lic.sourceItems.find(s => s.licenseName === termName);
@@ -2395,7 +2360,6 @@ function displayResults(sbomData, allResults, overallValid, filename, verbose, v
             licensesHtml = '<em>No licenses</em>';
         }
 
-        // Security: Escape all user-supplied data
         const rowValid = isEffectivelyValid ? 'valid' : 'invalid';
         const rowHasWarning = (result.warnings && result.warnings.length > 0) ? 'true' : 'false';
         const rowHasNonCommercial = result.hasNonCommercialMatch ? "true" : "false";
@@ -2452,11 +2416,6 @@ function displayResults(sbomData, allResults, overallValid, filename, verbose, v
             ${validationMode === 'tooldownload' ? `<td><button type="button" class="tooldownload-edit-btn" data-edit-action="${escapeHtml(rowId)}" onclick="toggleRowEdit('${escapeHtml(editKey)}','${escapeHtml(rowId)}')">Edit</button><span id="tooldownloadEdited_${escapeHtml(rowId)}" style="display:inline-block;margin-left:6px;font-size:11px;color:var(--color-grey-600);"></span></td>` : ''}
         </tr>`;
 
-        // Show errors - Security: Escape error messages
-        // Each message reflects any saved override text (falling back to the
-        // original validation message) and surfaces a note badge when a
-        // context note exists, keeping it in sync with the Invalid Issues view.
-        // Clicking a message opens the same merged context/override popup.
         if (!isEffectivelyValid && filteredErrors.length > 0) {
             const errorList = filteredErrors.map(e => {
                 const originalMessage = e.message;
@@ -2481,7 +2440,6 @@ function displayResults(sbomData, allResults, overallValid, filename, verbose, v
             </tr>`;
         }
 
-        // Show warnings - Security: Escape warning messages
         if (result.warnings.length > 0) {
             const safeWarnings = result.warnings.map(w => escapeHtml(w)).join('<br>');
             html += `<tr data-valid="${rowValid}" data-has-warning="true" class="detail-row">
@@ -2511,7 +2469,6 @@ function displayResults(sbomData, allResults, overallValid, filename, verbose, v
         updateChangeTrackingUi();
     }
 
-    // Attach click handlers to status badge buttons to open the error override modal
     document.querySelectorAll('.status-badge[data-comp-key]').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const key = btn.getAttribute('data-comp-key');
@@ -2587,7 +2544,6 @@ function openErrorOverrideModal(componentKey, componentName) {
 
     subtitleEl.textContent = componentName ? `Component: ${componentName}` : `Component: ${componentKey}`;
 
-    // Find the result object from last display state
     const state = window.__lastDisplayState || {};
     const results = state.allResults || [];
     const result = results.find(r => (r.objectPath || `components[${results.indexOf(r)}]`) === componentKey) || null;
@@ -2598,7 +2554,6 @@ function openErrorOverrideModal(componentKey, componentName) {
     }
 
     if (errors.length === 0) {
-        // Component is valid — offer the false-positive override toggle.
         const isFP = typeof hasFalsePositiveOverride === 'function' && hasFalsePositiveOverride(componentKey);
         const titleEl = document.getElementById('errorOverrideModalTitle');
         if (titleEl) titleEl.textContent = 'Override Valid Status';
@@ -2647,14 +2602,11 @@ function openErrorOverrideModal(componentKey, componentName) {
         return;
     }
 
-    // Also offer the false-positive override for components that have real errors
-    // (already handled below), so reset the title for the error case.
     const titleEl = document.getElementById('errorOverrideModalTitle');
     if (titleEl) titleEl.textContent = 'Component Errors';
 
     const manualOverrides = getManualOverridesForComponent(componentKey);
 
-    // Build error rows with proper styling
     bodyEl.innerHTML = '';
     const listContainer = document.createElement('div');
     listContainer.style.display = 'flex';
@@ -2671,7 +2623,6 @@ function openErrorOverrideModal(componentKey, componentName) {
         errorRow.style.gap = '12px';
         errorRow.style.alignItems = 'center';
 
-        // Left: error message box (rounded, red or green if overridden)
         const leftBox = document.createElement('div');
         leftBox.className = isOverridden ? 'error-message-box status-valid' : 'error-message-box';
         leftBox.style.flex = '1';
@@ -2687,7 +2638,6 @@ function openErrorOverrideModal(componentKey, componentName) {
         leftBox.appendChild(bullet);
         leftBox.appendChild(textSpan);
 
-        // Right: override button box (rounded pill button)
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = isOverridden ? 'override-box status-valid' : 'override-box';
@@ -2713,8 +2663,6 @@ function closeErrorOverrideModal() {
     document.body.classList.remove('license-modal-open');
 }
 
-// Quick-insert suggestion buttons shown in the Override Reason modal.
-// Add/remove/reorder entries here to change the suggestions shown to the user.
 const OVERRIDE_REASON_SUGGESTIONS = [
     'Valid Copyright',
     'Valid Licensetext',
@@ -2783,7 +2731,6 @@ function closeOverrideReasonModal() {
         document.body.classList.remove('license-modal-open');
     }
     pendingOverrideContext = null;
-    // Note: Don't clear pendingOverrideReason here - it's still needed in the proceed functions
 }
 
 function submitOverrideReason() {
@@ -2798,12 +2745,10 @@ function submitOverrideReason() {
         if (textarea) textarea.focus();
         return;
     }
-    // Save context before closing modal (which clears it)
     const context = pendingOverrideContext;
     pendingOverrideReason = reason;
     closeOverrideReasonModal();
-    
-    // Now use the saved context
+
     if (context.action === 'toggleManualOverride') {
         proceedToggleManualOverride(context.componentKey, context.errorMessage, context.componentName);
     } else if (context.action === 'toggleFalsePositiveOverride') {
@@ -2880,12 +2825,10 @@ function proceedToggleManualOverride(componentKey, errorMessage, componentName =
     const s = window.__lastDisplayState || null;
     const beforeSnapshot = getTooldownloadStatusSnapshot(componentKey, s);
 
-    // Determine current state and flip
     const manual = getManualOverridesForComponent(componentKey);
     const currently = manual.has(errorMessage);
     setManualOverride(componentKey, errorMessage, !currently);
 
-    // Set up navigation context to jump back to this component after re-render
     const componentRows = Array.from(document.querySelectorAll('#componentsTable tbody tr[data-component-key]'));
     const visibleComponentRows = componentRows.filter(row => row.style.display !== 'none');
     const componentRow = componentRows.find(row => row.dataset.componentKey === componentKey);
@@ -2895,7 +2838,6 @@ function proceedToggleManualOverride(componentKey, errorMessage, componentName =
         componentIndex: componentRow ? visibleComponentRows.indexOf(componentRow) : -1
     };
 
-    // Re-render results from saved state (no revalidation)
     if (s) {
         displayResults(s.sbomData, s.allResults, s.overallValid, s.filename, s.verbose, s.validationMode, s.isManualMapping);
         const afterSnapshot = getTooldownloadStatusSnapshot(componentKey, window.__lastDisplayState || s);
@@ -2907,8 +2849,7 @@ function proceedToggleManualOverride(componentKey, errorMessage, componentName =
         if (['standard', 'standard-internal', 'tooldownload'].includes(s.validationMode) && typeof updateChangeTrackingUi === 'function') {
             updateChangeTrackingUi();
         }
-        pendingOverrideReason = '';  // Clear reason after it's been used
-        // Close the error modal so user can see updated results
+        pendingOverrideReason = '';
         closeErrorOverrideModal();
     }
 }
@@ -2933,7 +2874,6 @@ function proceedToggleFalsePositiveOverride(componentKey, componentName = '') {
     const current = typeof hasFalsePositiveOverride === 'function' && hasFalsePositiveOverride(componentKey);
     setFalsePositiveOverride(componentKey, !current);
     
-    // Set up navigation context to jump back to this component after re-render
     const componentRows = Array.from(document.querySelectorAll('#componentsTable tbody tr[data-component-key]'));
     const visibleComponentRows = componentRows.filter(row => row.style.display !== 'none');
     const componentRow = componentRows.find(row => row.dataset.componentKey === componentKey);
@@ -2955,7 +2895,6 @@ function proceedToggleFalsePositiveOverride(componentKey, componentName = '') {
             updateChangeTrackingUi();
         }
         pendingOverrideReason = '';
-        // Close the error modal so user can see updated results
         closeErrorOverrideModal();
     }
 }
@@ -3055,8 +2994,7 @@ function openInvalidIssueContextEditor(scope, issueText, componentKey = '', comp
     modal.classList.add('open');
     document.body.classList.add('license-modal-open');
     errorMessageInput.focus();
-    
-    // Initialize canned responses sidebar
+
     if (typeof initCannedResponsesSidebar === 'function') {
         initCannedResponsesSidebar();
     }
@@ -3095,10 +3033,7 @@ function submitInvalidIssueContext() {
             ? currentComponentOverride
             : (errorMessage === context.issueText ? '' : errorMessage);
 
-        // All/Invalid-view notes describe the shared error, so keep them at issue scope.
         setInvalidIssueContext(context.issueText, '', note, '', currentIssueOverride);
-        // Keep a changed error label component-specific, but do not create an
-        // override just because the unchanged message is prefilled in the form.
         setInvalidIssueContext(context.issueText, context.componentKey, '', context.componentName || '', nextComponentOverride || '');
     } else if (context.scope === 'component') {
         setInvalidIssueContext(context.issueText, context.componentKey, note, context.componentName || '', errorMessage);
@@ -3124,8 +3059,6 @@ function submitInvalidIssueContext() {
             filterTable(filterMode);
         }
 
-        // When editing from the All/Invalid filters, restore that filter and
-        // highlight the edited error message in the component's detail row.
         if ((filterMode === 'all' || filterMode === 'invalid') && nav.componentKey) {
             const escapedComponentKey = typeof CSS !== 'undefined' && CSS.escape
                 ? CSS.escape(String(nav.componentKey))
@@ -3547,10 +3480,6 @@ function cancelLicenseTextEdit() {
         return;
     }
 
-    /*
-     * Restore the currently saved value.
-     * Unsaved textarea changes are discarded.
-     */
     editorEl.value =
         typeof item.text === 'string'
             ? item.text

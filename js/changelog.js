@@ -305,7 +305,7 @@ async function loadNoticeFiles(event) {
     if (files.length === 0) {
         const status = document.getElementById('noticeFileStatus');
         if (status) {
-            status.textContent = '✗ Not Loaded';
+            status.textContent = 'X Not Loaded';
             status.className = 'schema-status schema-missing';
         }
         return;
