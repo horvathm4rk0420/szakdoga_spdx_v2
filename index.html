@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SBOM Validator - CycloneDX &amp; SPDX</title>
+    <link rel="stylesheet" href="css/styles.css?v=20261026-compact-overrides">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 SBOM Validator</h1>
+            <p>Validate CycloneDX (1.4–1.7) and SPDX (2.2, 2.3) SBOM files</p>
+            <p>internal - Open Source Office (K-DPA/O) 03/2026 - created with AI assistance, results maybe wrong and need verification</p>
+            <p>early alpha version for testing and feedback &nbsp;|&nbsp; <span id="appVersion" style="font-size:0.85em;opacity:0.8;">v0.0.0-dev</span></p>
+        </div>
+
+        <div class="content">
+            <div class="upload-grid">
+                <div class="schema-upload-section upload-card">
+                    <h3>📁 Schema File</h3>
+                    <p class="upload-help">Upload CycloneDX schema (JSON/XSD) or SPDX schema.</p>
+                    <div class="upload-actions">
+                        <input type="file" id="schemaInput" accept=".json,.xsd" style="display: none;" />
+                        <button class="schema-btn" onclick="document.getElementById('schemaInput').click()">
+                            Upload Schema
+                        </button>
+                        <button class="schema-btn manual-mapping-start-btn" id="startManualMappingButton" type="button">
+                            Start Manual Mapping
+                        </button>
+                        <span id="schemaStatus" class="schema-status schema-missing">✗ Not Loaded</span>
+                    </div>
+                    <p id="schemaFileName" class="uploaded-file-name"></p>
+                </div>
+
+                <div class="schema-upload-section upload-card">
+                    <h3>📄 License Reference File</h3>
+                    <p class="upload-help">Upload JSON list with licTypeName, spdxId, category, and LicenseText.</p>
+                    <div class="upload-actions">
+                        <input type="file" id="licenseRefInput" accept=".json" style="display: none;" />
+                        <button class="schema-btn" onclick="document.getElementById('licenseRefInput').click()">
+                            Upload Reference
+                        </button>
+                        <span id="licenseRefStatus" class="schema-status schema-missing">✗ Not Loaded</span>
+                    </div>
+                    <p id="licenseRefFileName" class="uploaded-file-name"></p>
+                </div>
+
+                <div class="upload-section upload-card" id="uploadSection">
+                    <h2>📦 SBOM File</h2>
+                    <p class="upload-help">Drag and drop or browse for CycloneDX JSON/XML or SPDX JSON.</p>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="fileInput" accept=".json,.xml" />
+                        <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                            Choose File
+                        </button>
+                    </div>
+                    <p id="fileName" class="uploaded-file-name"></p>
+                </div>
+            </div>
+
+            <div id="manualMappingPanel" class="manual-mapping-panel" style="display:none;">
+                <div class="manual-mapping-header">
+                    <div>
+                        <h3>Manual JSON Field Mapping</h3>
+                        <p>Enter dot paths using <strong>[]</strong> for the repeated component array, for example <code>components[].name</code>.</p>
+                        <p>The first repeated array in the first mapping determines the component records. Mappings are kept for this browser session only.</p>
+                    </div>
+                    <button type="button" class="manual-mapping-close" onclick="closeManualMappingPanel()" aria-label="Close manual mapping">&times;</button>
+                </div>
+                <div id="manualMappingFields" class="manual-mapping-fields"></div>
+                <div class="manual-mapping-actions">
+                    <button type="button" class="schema-btn" onclick="validateManualMappedComponents(currentSbomData, currentFileName)">Validate Mapped SBOM</button>
+                    <button type="button" class="schema-btn manual-mapping-cancel" onclick="closeManualMappingPanel()">Cancel</button>
+                </div>
+            </div>
+
+            <div class="options">
+                <h3 style="margin-bottom: 15px; color: var(--color-grey-1000);">Validation Options</h3>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: var(--font-weight-bold);">Validation Mode:</label>
+                    <label style="margin-right: 20px;">
+                        <input type="radio" name="validationMode" id="validationModeStandard" value="standard" checked />
+                        Standard Software (Name, Version, Licenses, Copyright required)
+                    </label>
+                    <label style="margin-right: 20px;">
+                        <input type="radio" name="validationMode" id="validationModeStandardInternal" value="standard-internal" />
+                        Standard Software Internal (Name, Version, Licenses required)
+                    </label>
+                    <label style="margin-right: 20px;">
+                        <input type="radio" name="validationMode" id="validationModeTooldownload" value="tooldownload" />
+                        Tooldownload (editing + AI enrichment)
+                    </label>
+                    <label>
+                        <input type="radio" name="validationMode" id="validationModeInternal" value="internal" />
+                        Internal Development (PURL required)
+                    </label>
+                </div>
+                <label>
+                    <input type="checkbox" id="includeMetadataComponent" checked />
+                    Include Metadata Component (Main Component)
+                </label>
+                <label>
+                    <input type="checkbox" id="includeMetadataTools" />
+                    Include Metadata Tools Components / SPDX Files
+                </label>
+                <label>
+                    <input type="checkbox" id="verboseMode" />
+                    Verbose Error Messages
+                </label>
+
+                <div id="tooldownloadPanel" class="tooldownload-panel" style="display:none;">
+                    <div class="tooldownload-panel-header">
+                        <strong>Tooldownload</strong>
+                        <span>Row editing, save/export, and AI enrichment are enabled only in this mode.</span>
+                    </div>
+                    <div class="tooldownload-actions">
+                        <button type="button" class="schema-btn" onclick="downloadEditedSbom()">Download Edited SBOM</button>
+                        <button type="button" class="schema-btn" onclick="runTooldownloadEnrichment()">Run AI Enrichment</button>
+                    </div>
+                    <div class="enrichment-config">
+                        <label style="display:block; font-weight: var(--font-weight-bold);">Notice File Search Path</label>
+                        <div class="enrichment-input-row">
+                            <input type="text" id="noticeSearchPath" class="enrichment-input" placeholder="e.g. C:\\notice-files" />
+                            <input type="file" id="noticeFileInput" webkitdirectory directory multiple style="display:none;" onchange="loadNoticeFiles(event)" />
+                            <button class="schema-btn" type="button" onclick="document.getElementById('noticeFileInput').click()">Load Notice Files</button>
+                            <span id="noticeFileStatus" class="schema-status schema-missing">✗ Not Loaded</span>
+                        </div>
+                        <div class="enrichment-input-row" style="margin-top:8px;">
+                            <label style="font-weight:var(--font-weight-bold); white-space:nowrap; margin-right:6px;">AI Token</label>
+                            <input type="password" id="azureAiToken" class="enrichment-input" placeholder="ghp_… or Azure AI key" style="flex:1;" />
+                            <select id="azureAiModel" class="schema-btn" style="min-width:130px;">
+                                <option value="gpt-4o-mini">gpt-4o-mini</option>
+                                <option value="gpt-4o">gpt-4o</option>
+                            </select>
+                            <span id="azureAiTokenStatus" class="schema-status schema-missing">✗ No Token</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="progress-wrapper">
+                    <p id="progressLabel" class="progress-label">Validating SBOM...</p>
+                    <div class="progress-bar-container">
+                        <div id="progressBarFill" class="progress-bar-fill"></div>
+                    </div>
+                    <p id="progressPercent" class="progress-percent">0%</p>
+                </div>
+            </div>
+
+            <div id="results"></div>
+        </div>
+    </div>
+
+    <!-- Global State -->
+    
+
+    <!-- Utility Functions -->
+    
+    
+    
+    
+    
+
+    <!-- Copyright Validation -->
+    
+    
+    
+
+    <!-- Schema Functions -->
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    <!-- License Validation -->
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    <!-- CycloneDX Validation -->
+    
+    
+
+    <!-- XML Validation -->
+    
+    
+    
+
+    <!-- SPDX Validation -->
+    
+    
+    
+
+    <!-- Manual Mapping Validation -->
+    
+
+    <!-- Display & UI Functions -->
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    <!-- Error Handling -->
+    
+    
+    
+
+    <!-- File Upload & Event Listeners -->
+    
+    
+    
+    <script src="js/core.js?v=consolidated1"></script>
+    <script src="js/schema.js?v=consolidated1"></script>
+    <script src="js/licenses.js?v=consolidated1"></script>
+    <script src="js/validators.js?v=consolidated1"></script>
+    <script src="js/mapping.js?v=consolidated1"></script>
+    <script src="js/results.js?v=consolidated1"></script>
+    <script src="js/editing.js?v=consolidated1"></script>
+    <script src="js/changelog.js?v=consolidated1"></script>
+    <script src="js/notice.js?v=consolidated1"></script>
+    <script src="js/ui.js?v=consolidated1"></script>
+    <script src="js/startup.js?v=consolidated1"></script>
+</body>
+</html>
